@@ -4,7 +4,8 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
-![GTK](https://img.shields.io/badge/GTK-3.0+-green.svg)
+![Tkinter](https://img.shields.io/badge/tkinter-builtin-green.svg)
+![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
 
 ---
 
@@ -16,6 +17,10 @@
 - 🎨 **现代 UI**：深色主题，美观大方
 - ⚡ **实时更新**：50ms 刷新率，流畅显示秒针
 - 🖥️ **跨平台**：Python 版本支持所有 Linux 发行版
+- 📸 **界面截图**：4 张高清截图展示所有模式
+- 🔧 **双版本实现**：Python (Tkinter) + C (GTK3)
+- 💾 **配置持久化**：自动保存用户偏好设置（时区、模式、主题、窗口位置），下次启动自动恢复
+- 📐 **精确布局**：600×500 固定窗口，完美适配
 
 ---
 
@@ -71,13 +76,38 @@ gcc -o clock clock.c `pkg-config --cflags --libs gtk+-3.0` -lm
 
 ---
 
+## 🧪 运行测试
+
+项目包含 54 个自动化测试用例，覆盖时区、配置、显示等功能。
+
+### 运行测试套件
+
+```bash
+# 使用 Makefile
+make test
+
+# 或使用测试脚本
+./run_tests.sh
+
+# 详细输出模式
+./run_tests.sh -v
+```
+
+### 测试覆盖
+- ✅ **时区功能** (12 个用例) - 时区切换、时间计算
+- ✅ **配置功能** (19 个用例) - 配置加载、保存、验证
+- ✅ **显示功能** (23 个用例) - 主题切换、模式切换、渲染
+
+---
+
 ## 🎮 操作说明
 
-| 功能 | 操作方式 |
-|------|----------|
-| 切换时区 | 下拉菜单选择城市 |
-| 切换模式 | Analog（模拟）/ Digital（数字）/ Both（两者） |
-| 关闭窗口 | 点击窗口关闭按钮 |
+| 功能 | 操作方式 | 说明 |
+|------|----------|------|
+| 切换时区 | 点击时区下拉菜单，选择城市 | 支持 25 个时区 |
+| 切换模式 | 选择 Analog 或 Digital 单选按钮 | 即时切换，无需重启 |
+| 双模式显示 | 运行 `python3 clock_both.py` | 同时显示两种模式 |
+| 关闭窗口 | 点击窗口 × 按钮或 Alt+F4 | 正常退出应用 |
 
 ---
 
@@ -85,10 +115,22 @@ gcc -o clock clock.c `pkg-config --cflags --libs gtk+-3.0` -lm
 
 ```
 clawclock/
-├── clock.py          # Python 版本 (Tkinter)
-├── clock.c           # C 版本 (GTK3)
-├── README.md         # 说明文档
-└── screenshots/      # 截图目录（可选）
+├── clock.py              # Python 版本主程序 (Tkinter)
+├── clock.c               # C 版本 (GTK3)
+├── clock_screenshot.py   # 截图专用脚本（支持命令行参数）
+├── clock_both.py         # 双模式同时显示版本
+├── clock_timezone.py     # 时区选择器截图脚本
+├── README.md             # 说明文档
+├── DEVELOPMENT.md        # 开发文档
+├── PUBLISH.md            # 发布文档
+├── Makefile              # C 版本编译配置
+├── install.sh            # 安装脚本
+└── screenshots/          # 界面截图目录
+    ├── analog-clock.png
+    ├── digital-clock.png
+    ├── both-modes.png
+    ├── timezone-selector.png
+    └── README_IMAGES.md  # 截图说明文档
 ```
 
 ---
@@ -96,36 +138,190 @@ clawclock/
 ## 🎨 界面预览
 
 ### 模拟时钟模式
-- 经典圆形表盘
-- 时针、分针、秒针
-- 小时刻度和分钟刻度
+
+![模拟时钟](screenshots/analog-clock.png)
+
+**特点：**
+- 经典圆形表盘设计
+- 三针显示（时针、分针、秒针）
+- 60 个精细刻度（12 主刻度 + 48 次刻度）
+- 50ms 刷新率，秒针流畅移动
+
+---
 
 ### 数字时钟模式（7 段数码管）
-- 🔴 **经典 LED 风格**：红色 7 段数码管显示
-- 🕐 **HH:MM:SS 格式**：时、分、秒完整显示
-- 📅 **日期和时区**：下方显示日期和当前时区
-- ⚡ **流畅刷新**：50ms 更新率，秒秒精准
+
+![数字时钟](screenshots/digital-clock.png)
+
+**特点：**
+- 🔴 经典红色 LED 风格
+- 🕐 HH:MM:SS 完整时间显示
+- 📅 日期和星期显示
+- ⚡ 50ms 实时更新
+
+**数码管规格：**
+- 单个数字：35px × 60px
+- 段厚度：5px 圆形端点
+- 颜色：点亮 #ff3333 / 未点亮 #331111
+
+---
 
 ### 双模式同时显示
-- 左侧模拟时钟
-- 右侧 7 段数码管时钟
-- 最佳视觉体验
+
+![双模式](screenshots/both-modes.png)
+
+**特点：**
+- 上下布局，清晰分离
+- 同时显示两种风格
+- 适合教学演示和对比
+
+**注意：** 需要使用 `clock_both.py` 脚本
+
+---
+
+### 时区选择器
+
+![时区选择](screenshots/timezone-selector.png)
+
+**特点：**
+- 🌍 25 个时区选项
+- 📍 每时区指定代表城市
+- 🔽 下拉菜单，操作便捷
+
+**时区覆盖：**
+- 西区：UTC-12 ~ UTC-1 (12 个)
+- 零时区：UTC+0 (1 个)
+- 东区：UTC+1 ~ UTC+12 (12 个)
+
+---
+
+## 📸 截图脚本
+
+项目提供专用截图脚本，可自动生成界面截图。
+
+### 快速截图
+
+```bash
+# 模拟时钟模式
+python3 clock_screenshot.py analog
+
+# 数字时钟模式
+python3 clock_screenshot.py digital
+
+# 时区选择器（自动展开下拉菜单）
+python3 clock_timezone.py
+
+# 双模式同时显示
+python3 clock_both.py
+```
+
+### 截图输出
+
+所有截图保存至 `screenshots/` 目录：
+- `analog-clock.png` - 模拟时钟界面
+- `digital-clock.png` - 数字时钟界面
+- `both-modes.png` - 双模式界面
+- `timezone-selector.png` - 时区选择器展开状态
+
+### 依赖要求
+
+- ImageMagick (`sudo apt install imagemagick`)
+- Python 3 Tkinter (`sudo apt install python3-tk`)
+- X11 显示环境
+
+---
+
+## 🔧 技术细节
+
+### 渲染性能
+
+- **刷新率**：50ms (20 FPS)
+- **渲染方式**：Tkinter Canvas 矢量绘图
+- **抗锯齿**：自动启用
+- **资源占用**：~30MB 内存
+
+### 时间计算
+
+**模拟时钟指针角度：**
+```python
+# 秒针：每秒 6 度
+sec_angle = second * 6 - 90
+
+# 分针：每分钟 6 度 + 每秒 0.1 度
+min_angle = minute * 6 + second * 0.1 - 90
+
+# 时针：每小时 30 度 + 每分钟 0.5 度
+hour_angle = (hour % 12) * 30 + minute * 0.5 - 90
+```
+
+**7 段数码管段映射：**
+```python
+digit_segs = {
+    0: [1, 1, 1, 1, 1, 1, 0],
+    1: [0, 1, 1, 0, 0, 0, 0],
+    2: [1, 1, 0, 1, 1, 0, 1],
+    # ... 更多见源码
+}
+```
+
+### 时区处理
+
+- 使用 Python `datetime` 模块
+- 支持 IANA 时区数据库
+- 自动处理夏令时（如适用）
 
 ---
 
 ## ⚙️ 配置选项
 
-### 颜色主题
+### 💾 配置自动保存
 
-可在代码中修改以下颜色：
+应用会自动保存以下设置到 `config.json` 文件：
+- ✅ 默认时区
+- ✅ 显示模式（模拟/数字）
+- ✅ 颜色主题
+- ✅ 窗口大小和位置
 
-```python
-bg_color = "#1a1a2e"      # 背景色
-face_color = "#16213e"    # 表盘色
-hand_color = "#e94560"    # 指针色
-text_color = "#ffffff"    # 文字色
-accent_color = "#0f3460"  # 强调色
+**配置文件位置**: `~/.openclaw/workspace/clawclock/config.json`
+
+**重置配置**: 删除 `config.json` 文件，下次启动会生成默认配置
+
+---
+
+### 🎨 主题切换
+
+应用内置 4 种精美主题，可通过 UI 下拉菜单一键切换：
+
+| 主题 | 风格 | 适用场景 |
+|------|------|----------|
+| **Dark** | 深色模式 | 默认主题，适合日常使用 |
+| **Light** | 经典白 | 办公场景，明亮环境 |
+| **Green** | 护眼绿 | 夜间模式，保护视力 |
+| **Cyberpunk** | 赛博朋克 | 炫酷风格，个性化展示 |
+
+**使用方法：**
+1. 点击界面底部的"主题:"下拉菜单
+2. 选择喜欢的主题
+3. 立即生效并自动保存
+
+**自定义主题：**
+可在 `themes/` 目录下创建自定义主题 JSON 文件：
+```json
+{
+  "name": "my-theme",
+  "colors": {
+    "background": "#xxxxxx",
+    "face": "#xxxxxx",
+    "hand": "#xxxxxx",
+    "text": "#xxxxxx",
+    "accent": "#xxxxxx",
+    "segment_on": "#xxxxxx",
+    "segment_off": "#xxxxxx"
+  }
+}
 ```
+
+---
 
 ### 时区列表
 
