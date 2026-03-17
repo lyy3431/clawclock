@@ -30,6 +30,7 @@ import datetime
 import math
 import os
 import sys
+import json
 
 class ClockApp:
     """
@@ -44,12 +45,94 @@ class ClockApp:
         text_color: 文字颜色
     """
     
+    def load_config(self):
+        """
+        加载配置文件
+        
+        Returns:
+            dict: 配置字典，如果配置文件不存在则返回默认配置
+        """
+        config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+        default_config = {
+            "timezone": "Asia/Shanghai",
+            "display_mode": "analog",
+            "window": {
+                "width": 600,
+                "height": 500,
+                "resizable": False
+            },
+            "theme": {
+                "name": "dark",
+                "colors": {
+                    "background": "#1a1a2e",
+                    "face": "#16213e",
+                    "hand": "#e94560",
+                    "text": "#ffffff",
+                    "accent": "#0f3460",
+                    "segment_on": "#ff3333",
+                    "segment_off": "#331111"
+                }
+            }
+        }
+        
+        try:
+            if os.path.exists(config_file):
+                with open(config_file, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                # 合并配置，确保所有键都存在
+                return self.merge_config(default_config, config)
+            else:
+                # 配置文件不存在，创建默认配置
+                self.save_config(default_config, config_file)
+                return default_config
+        except Exception as e:
+            print(f"⚠️  加载配置文件失败：{e}")
+            print("   使用默认配置")
+            return default_config
+    
+    def merge_config(self, default, custom):
+        """递归合并配置字典"""
+        result = default.copy()
+        for key, value in custom.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self.merge_config(result[key], value)
+            else:
+                result[key] = value
+        return result
+    
+    def save_config(self, config, config_file=None):
+        """
+        保存配置文件
+        
+        Args:
+            config: 配置字典
+            config_file: 配置文件路径，默认为 config.json
+        """
+        if config_file is None:
+            config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+        
+        try:
+            with open(config_file, "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            return True
+        except Exception as e:
+            print(f"⚠️  保存配置文件失败：{e}")
+            return False
+    
     def __init__(self, root):
         """初始化时钟应用"""
         self.root = root
         self.root.title("ClawClock - 图形时钟")
-        self.root.geometry("600x500")
-        self.root.resizable(False, False)
+        
+        # 加载配置文件
+        self.config = self.load_config()
+        
+        # 应用窗口配置
+        width = self.config.get("window", {}).get("width", 600)
+        height = self.config.get("window", {}).get("height", 500)
+        resizable = self.config.get("window", {}).get("resizable", False)
+        self.root.geometry(f"{width}x{height}")
+        self.root.resizable(resizable, resizable)
         
         # 设置窗口图标（如果有的话）
         try:
@@ -57,8 +140,8 @@ class ClockApp:
         except:
             pass
         
-        # 默认时区
-        self.timezone = "Asia/Shanghai"
+        # 默认时区（从配置加载）
+        self.timezone = self.config.get("timezone", "Asia/Shanghai")
         
         # 时区配置：东西各 12 时区，每区指定代表城市
         self.timezones = [
@@ -92,15 +175,19 @@ class ClockApp:
             ("UTC+12", "Pacific/Auckland", "奥克兰"),
         ]
         
-        # Colors
-        self.bg_color = "#1a1a2e"
-        self.face_color = "#16213e"
-        self.hand_color = "#e94560"
-        self.text_color = "#ffffff"
-        self.accent_color = "#0f3460"
+        # 从配置加载颜色
+        theme_config = self.config.get("theme", {}).get("colors", {})
+        self.bg_color = theme_config.get("background", "#1a1a2e")
+        self.face_color = theme_config.get("face", "#16213e")
+        self.hand_color = theme_config.get("hand", "#e94560")
+        self.text_color = theme_config.get("text", "#ffffff")
+        self.accent_color = theme_config.get("accent", "#0f3460")
         # 7 段数码管颜色
-        self.seg_color_on = "#ff3333"  # 点亮的段 - 红色
-        self.seg_color_off = "#331111"  # 未点亮的段 - 暗红色
+        self.seg_color_on = theme_config.get("segment_on", "#ff3333")
+        self.seg_color_off = theme_config.get("segment_off", "#331111")
+        
+        # 显示模式（从配置加载）
+        self.display_mode = self.config.get("display_mode", "analog")
         
         # Setup UI
         self.setup_ui()
@@ -122,12 +209,18 @@ class ClockApp:
         # 格式化时区选项显示
         tz_values = [f"{tz[0]} {tz[2]} ({tz[1]})" for tz in self.timezones]
         self.tz_combo = ttk.Combobox(tz_frame, values=tz_values, width=28, state="readonly")
-        self.tz_combo.set("UTC+8 上海 (Asia/Shanghai)")
+        # 设置默认时区（从配置加载）
+        default_tz_display = f"UTC+8 上海 (Asia/Shanghai)"
+        for tz_val in tz_values:
+            if self.timezone in tz_val:
+                default_tz_display = tz_val
+                break
+        self.tz_combo.set(default_tz_display)
         self.tz_combo.pack(side=tk.LEFT, padx=(5, 0))
         self.tz_combo.bind("<<ComboboxSelected>>", self.on_timezone_change)
         
-        # Mode toggle - 只保留 Analog 和 Digital
-        self.mode_var = tk.StringVar(value="analog")
+        # Mode toggle - 只保留 Analog 和 Digital（从配置加载）
+        self.mode_var = tk.StringVar(value=self.display_mode)
         mode_frame = tk.Frame(main_frame, bg=self.bg_color)
         mode_frame.pack(pady=(0, 10))
         
