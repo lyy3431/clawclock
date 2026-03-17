@@ -1,6 +1,6 @@
 # 🕐 ClawClock - 图形化时钟应用
 
-一个支持模拟和数字时间显示的 Linux 桌面时钟应用，提供 Python 和 C 两个版本。
+一个支持模拟和数字时间显示的 Linux 桌面时钟应用。
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
@@ -18,7 +18,7 @@
 - ⚡ **实时更新**：50ms 刷新率，流畅显示秒针
 - 🖥️ **跨平台**：Python 版本支持所有 Linux 发行版
 - 📸 **界面截图**：4 张高清截图展示所有模式
-- 🔧 **双版本实现**：Python (Tkinter) + C (GTK3)
+- 🔧 **Python 实现**：使用 Tkinter 库，简洁易用
 - 💾 **配置持久化**：自动保存用户偏好设置（时区、模式、主题、窗口位置），下次启动自动恢复
 - 📐 **精确布局**：600×500 固定窗口，完美适配
 
@@ -39,19 +39,6 @@ sudo pacman -S tk python-tz
 sudo dnf install python3-tkinter python3-dateutil
 ```
 
-### C 版本 (GTK3)
-
-```bash
-# Debian/Ubuntu
-sudo apt install libgtk-3-dev libcairo2-dev gcc
-
-# Arch Linux
-sudo pacman -S gtk3 cairo gcc
-
-# Fedora
-sudo dnf install gtk3-devel cairo-devel gcc
-```
-
 ---
 
 ## 🚀 使用方法
@@ -63,17 +50,6 @@ cd /home/lenovo/AItest/clawclock
 python3 clock.py
 ```
 
-### C 版本
-
-```bash
-# 编译
-cd /home/lenovo/AItest/clawclock
-gcc -o clock clock.c `pkg-config --cflags --libs gtk+-3.0` -lm
-
-# 运行
-./clock
-```
-
 ---
 
 ## 🧪 运行测试
@@ -83,10 +59,7 @@ gcc -o clock clock.c `pkg-config --cflags --libs gtk+-3.0` -lm
 ### 运行测试套件
 
 ```bash
-# 使用 Makefile
-make test
-
-# 或使用测试脚本
+# 运行测试脚本
 ./run_tests.sh
 
 # 详细输出模式
@@ -116,14 +89,12 @@ make test
 ```
 clawclock/
 ├── clock.py              # Python 版本主程序 (Tkinter)
-├── clock.c               # C 版本 (GTK3)
 ├── clock_screenshot.py   # 截图专用脚本（支持命令行参数）
 ├── clock_both.py         # 双模式同时显示版本
 ├── clock_timezone.py     # 时区选择器截图脚本
 ├── README.md             # 说明文档
 ├── DEVELOPMENT.md        # 开发文档
 ├── PUBLISH.md            # 发布文档
-├── Makefile              # C 版本编译配置
 ├── install.sh            # 安装脚本
 └── screenshots/          # 界面截图目录
     ├── analog-clock.png
@@ -367,12 +338,6 @@ digit_segs = {
 - 使用 Tkinter 库，无需额外安装（Python 自带）
 - 代码简洁，易于修改和扩展
 - 适合快速原型开发
-
-### C 版本特点
-
-- 使用 GTK3，原生 Linux 应用
-- 性能更优，资源占用更低
-- 适合系统集成
 
 ---
 
