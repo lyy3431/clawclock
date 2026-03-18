@@ -1,8 +1,26 @@
 {
+  "breath_light": {
+    "enabled": true,
+    "mode": "digital",
+    "frequency": 1.0,
+    "intensity": 0.7,
+    "color_scheme": {
+      "normal": "#00ff88",
+      "warning": "#ffaa00",
+      "completed": "#ff3333"
+    },
+    "accelerate_on_complete": true
+  },
   "display_mode": "analog",
   "stopwatch": {
     "auto_save_laps": false,
     "show_milliseconds": true
+  },
+  "timer": {
+    "total_duration": 0,
+    "remaining_time": 0,
+    "sound_enabled": true,
+    "last_preset": "番茄钟"
   },
   "theme": {
     "colors": {

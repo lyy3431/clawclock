@@ -11,6 +11,8 @@ ClawClock - 图形化时钟应用
     - 现代深色主题 UI
     - 实时更新（50ms 刷新率）
     - 闹钟功能
+    - 秒表功能
+    - 倒计时功能（番茄钟、休息时间）
     - 全屏支持
     - 窗口置顶
 
@@ -23,7 +25,7 @@ ClawClock - 图形化时钟应用
 
 作者：ClawClock Development Team
 许可证：MIT
-版本：1.1.0
+版本：1.2.0
 """
 
 import tkinter as tk
@@ -87,6 +89,17 @@ class StopwatchState:
     laps: List[LapRecord] = field(default_factory=list)
 
 
+@dataclass
+class TimerState:
+    """倒计时状态数据类"""
+    is_running: bool = False
+    total_seconds: int = 0  # 总时长（秒）
+    remaining_seconds: float = 0.0  # 剩余时间（秒）
+    start_time: float = 0.0  # 开始时间戳
+    sound_enabled: bool = True
+    preset_name: str = ""
+
+
 class ClockApp:
     """
     时钟应用主类
@@ -120,6 +133,12 @@ class ClockApp:
         # 初始化秒表状态
         self.stopwatch: StopwatchState = StopwatchState()
         self.stopwatch_job: Optional[str] = None  # 用于取消定时器
+        
+        # 初始化倒计时状态
+        self.timer: TimerState = TimerState()
+        self.timer_job: Optional[str] = None  # 用于取消定时器
+        self.timer_blink_job: Optional[str] = None  # 闪烁提醒
+        self.timer_is_blinking: bool = False
         
         # 应用窗口配置
         width: int = self.config.get("window", {}).get("width", 600)
@@ -201,6 +220,9 @@ class ClockApp:
         
         # Setup UI
         self.setup_ui()
+        
+        # 加载倒计时配置
+        self.load_timer_config()
         
         # Start clock update
         self.update_clock()
@@ -642,6 +664,9 @@ class ClockApp:
         tk.Radiobutton(mode_frame, text="⏱️ 秒表", variable=self.mode_var, value="stopwatch", 
                        bg=self.bg_color, fg=self.text_color, selectcolor=self.accent_color,
                        command=self.update_mode).pack(side=tk.LEFT, padx=5)
+        tk.Radiobutton(mode_frame, text="⏳ 倒计时", variable=self.mode_var, value="timer", 
+                       bg=self.bg_color, fg=self.text_color, selectcolor=self.accent_color,
+                       command=self.update_mode).pack(side=tk.LEFT, padx=5)
         
         # 功能按钮框架
         btn_frame: tk.Frame = tk.Frame(main_frame, bg=self.bg_color)
@@ -765,6 +790,59 @@ class ClockApp:
         self.lap_listbox: tk.Listbox = tk.Listbox(self.stopwatch_frame, font=("Courier New", 12),
                                                    bg=self.face_color, fg=self.text_color, height=8, width=30)
         self.lap_listbox.pack(pady=10)
+        
+        # 倒计时 UI 框架（初始隐藏）
+        self.timer_frame: tk.Frame = tk.Frame(main_frame, bg=self.bg_color)
+        
+        # 倒计时时间显示
+        self.timer_time_var: tk.StringVar = tk.StringVar(value="00:00:00")
+        self.timer_label: tk.Label = tk.Label(self.timer_frame, textvariable=self.timer_time_var,
+                                               font=("Courier New", 48, "bold"), bg=self.bg_color, fg=self.text_color)
+        self.timer_label.pack(pady=20)
+        
+        # 倒计时状态标签
+        self.timer_status_var: tk.StringVar = tk.StringVar(value="准备就绪")
+        self.timer_status_label: tk.Label = tk.Label(self.timer_frame, textvariable=self.timer_status_var,
+                                                      font=("Arial", 14), bg=self.bg_color, fg=self.text_color)
+        self.timer_status_label.pack(pady=5)
+        
+        # 预设时间按钮框架
+        timer_preset_frame: tk.Frame = tk.Frame(self.timer_frame, bg=self.bg_color)
+        timer_preset_frame.pack(pady=10)
+        
+        # 预设时间按钮
+        preset_configs = [
+            ("🍅 番茄钟", 1500, "番茄钟"),
+            ("☕ 短休息", 300, "短休息"),
+            ("🛌 长休息", 900, "长休息"),
+            ("⏱️ 5 分钟", 300, "5 分钟"),
+            ("⏱️ 10 分钟", 600, "10 分钟"),
+            ("⏱️ 30 分钟", 1800, "30 分钟"),
+        ]
+        
+        self.timer_preset_buttons = []
+        for text, seconds, name in preset_configs:
+            btn = tk.Button(timer_preset_frame, text=text, command=lambda s=seconds, n=name: self.set_timer_preset(s, n),
+                           bg=self.accent_color, fg=self.text_color, font=("Arial", 11), width=11)
+            btn.pack(side=tk.LEFT, padx=5)
+            self.timer_preset_buttons.append(btn)
+        
+        # 倒计时控制按钮
+        timer_btn_frame: tk.Frame = tk.Frame(self.timer_frame, bg=self.bg_color)
+        timer_btn_frame.pack(pady=15)
+        
+        self.timer_start_btn: tk.Button = tk.Button(timer_btn_frame, text="▶️ 开始", command=self.toggle_timer,
+                                                     bg=self.accent_color, fg=self.text_color, font=("Arial", 12), width=10)
+        self.timer_start_btn.pack(side=tk.LEFT, padx=10)
+        
+        tk.Button(timer_btn_frame, text="🔄 重置", command=self.reset_timer,
+                  bg=self.accent_color, fg=self.text_color, font=("Arial", 12), width=10).pack(side=tk.LEFT, padx=10)
+        
+        # 声音开关
+        self.timer_sound_var: tk.BooleanVar = tk.BooleanVar(value=True)
+        tk.Checkbutton(timer_btn_frame, text="🔊 声音", variable=self.timer_sound_var,
+                      bg=self.bg_color, fg=self.text_color, selectcolor=self.accent_color,
+                      command=self.toggle_timer_sound).pack(side=tk.LEFT, padx=10)
         
         # 7 段数码管段定义 (a,b,c,d,e,f,g) - 单个数字的段坐标
         self.seg_width: int = 35
@@ -1220,15 +1298,24 @@ class ClockApp:
             self.canvas.pack(pady=10)  # 居中显示
             self.digital_frame.pack_forget()
             self.stopwatch_frame.pack_forget()
+            self.timer_frame.pack_forget()
         elif mode == "digital":
             self.canvas.pack_forget()
             self.digital_frame.pack(pady=10)  # 居中显示
             self.stopwatch_frame.pack_forget()
+            self.timer_frame.pack_forget()
         elif mode == "stopwatch":
             self.canvas.pack_forget()
             self.digital_frame.pack_forget()
             self.stopwatch_frame.pack(pady=10)  # 居中显示
+            self.timer_frame.pack_forget()
             self.update_stopwatch_display()  # 刷新秒表显示
+        elif mode == "timer":
+            self.canvas.pack_forget()
+            self.digital_frame.pack_forget()
+            self.stopwatch_frame.pack_forget()
+            self.timer_frame.pack(pady=10)  # 居中显示
+            self.update_timer_display()  # 刷新倒计时显示
         
         # 更新配置并保存
         self.config["display_mode"] = mode
@@ -1404,6 +1491,196 @@ class ClockApp:
         # 秒表状态在应用重启后重置
         self.stopwatch = StopwatchState()
     
+    # ========== 倒计时功能方法 ==========
+    
+    def set_timer_preset(self, seconds: int, name: str) -> None:
+        """
+        设置预设倒计时
+        
+        Args:
+            seconds: 总秒数
+            name: 预设名称
+        """
+        # 如果正在运行，先停止
+        if self.timer.is_running:
+            self.timer_stop()
+        
+        self.timer.total_seconds = seconds
+        self.timer.remaining_seconds = float(seconds)
+        self.timer.preset_name = name
+        self.timer.is_running = False
+        
+        # 更新显示
+        self.update_timer_display()
+        self.timer_status_var.set(f"已设置：{name}")
+        
+        # 保存配置
+        self.save_timer_config()
+        
+        print(f"⏳ 倒计时已设置：{name} ({seconds}秒)")
+    
+    def toggle_timer(self) -> None:
+        """启动/停止倒计时"""
+        if self.timer.is_running:
+            self.timer_stop()
+        else:
+            self.timer_start()
+    
+    def timer_start(self) -> None:
+        """启动倒计时"""
+        if self.timer.remaining_seconds <= 0:
+            messagebox.showinfo("提示", "请先设置倒计时时间")
+            return
+        
+        self.timer.is_running = True
+        self.timer.start_time = time.time()
+        self.timer_start_btn.config(text="⏸️ 暂停")
+        self._update_timer_loop()
+        
+        print("⏳ 倒计时已启动")
+    
+    def timer_stop(self) -> None:
+        """暂停倒计时"""
+        if self.timer.is_running:
+            # 计算已流逝的时间
+            elapsed = time.time() - self.timer.start_time
+            self.timer.remaining_seconds = max(0, self.timer.remaining_seconds - elapsed)
+            self.timer.is_running = False
+            
+            if self.timer_job:
+                self.root.after_cancel(self.timer_job)
+                self.timer_job = None
+            
+            self.timer_start_btn.config(text="▶️ 继续")
+            self.timer_status_var.set("已暂停")
+            self.update_timer_display()
+            
+            print("⏳ 倒计时已暂停")
+    
+    def reset_timer(self) -> None:
+        """重置倒计时"""
+        # 如果正在运行，先停止
+        if self.timer.is_running:
+            self.timer_stop()
+        
+        # 重置为预设时间或总时间
+        if self.timer.preset_name:
+            self.timer.remaining_seconds = float(self.timer.total_seconds)
+        else:
+            self.timer.remaining_seconds = float(self.timer.total_seconds)
+        
+        self.timer.is_running = False
+        self.timer_start_btn.config(text="▶️ 开始")
+        self.timer_status_var.set("准备就绪")
+        self._stop_timer_blink()
+        self.update_timer_display()
+        
+        # 保存配置
+        self.save_timer_config()
+        
+        print("⏳ 倒计时已重置")
+    
+    def toggle_timer_sound(self) -> None:
+        """切换声音提醒"""
+        self.timer.sound_enabled = self.timer_sound_var.get()
+        self.save_timer_config()
+        print(f"🔊 倒计时声音：{'开启' if self.timer.sound_enabled else '关闭'}")
+    
+    def _update_timer_loop(self) -> None:
+        """倒计时更新循环"""
+        if self.timer.is_running:
+            elapsed = time.time() - self.timer.start_time
+            self.timer.remaining_seconds = max(0, self.timer.remaining_seconds - elapsed)
+            
+            self.update_timer_display()
+            
+            # 检查是否完成
+            if self.timer.remaining_seconds <= 0:
+                self._on_timer_complete()
+            else:
+                # 继续更新（每秒）
+                self.timer_job = self.root.after(100, self._update_timer_loop)
+    
+    def update_timer_display(self) -> None:
+        """更新倒计时显示"""
+        remaining = int(self.timer.remaining_seconds)
+        hours = remaining // 3600
+        minutes = (remaining % 3600) // 60
+        seconds = remaining % 60
+        
+        time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        self.timer_time_var.set(time_str)
+    
+    def _on_timer_complete(self) -> None:
+        """倒计时完成处理"""
+        self.timer.is_running = False
+        self.timer_start_btn.config(text="▶️ 开始")
+        self.timer_status_var.set("⏰ 时间到！")
+        
+        # 视觉提醒：闪烁
+        self._start_timer_blink()
+        
+        # 声音提醒
+        if self.timer.sound_enabled:
+            self.root.bell()
+        
+        print("⏰ 倒计时完成！")
+    
+    def _start_timer_blink(self) -> None:
+        """开始闪烁提醒"""
+        self.timer_is_blinking = True
+        self._timer_blink_state = True
+        self._timer_blink_loop()
+    
+    def _timer_blink_loop(self) -> None:
+        """闪烁循环"""
+        if not self.timer_is_blinking:
+            return
+        
+        self._timer_blink_state = not self._timer_blink_state
+        if self._timer_blink_state:
+            self.timer_label.config(fg="#ff0000")
+            self.timer_frame.config(bg="#330000")
+        else:
+            self.timer_label.config(fg=self.text_color)
+            self.timer_frame.config(bg=self.bg_color)
+        
+        self.timer_blink_job = self.root.after(500, self._timer_blink_loop)
+    
+    def _stop_timer_blink(self) -> None:
+        """停止闪烁"""
+        self.timer_is_blinking = False
+        if self.timer_blink_job:
+            self.root.after_cancel(self.timer_blink_job)
+            self.timer_blink_job = None
+        self.timer_label.config(fg=self.text_color)
+        self.timer_frame.config(bg=self.bg_color)
+    
+    def save_timer_config(self) -> None:
+        """保存倒计时配置到 config.json"""
+        timer_config = {
+            "total_duration": self.timer.total_seconds,
+            "remaining_time": self.timer.remaining_seconds,
+            "sound_enabled": self.timer.sound_enabled,
+            "last_preset": self.timer.preset_name
+        }
+        
+        # 加载现有配置
+        config = self.load_config()
+        config["timer"] = timer_config
+        self.save_config(config)
+    
+    def load_timer_config(self) -> None:
+        """从 config.json 加载倒计时配置"""
+        timer_config = self.config.get("timer", {})
+        if timer_config:
+            self.timer.total_seconds = timer_config.get("total_duration", 0)
+            self.timer.remaining_seconds = timer_config.get("remaining_time", 0)
+            self.timer.sound_enabled = timer_config.get("sound_enabled", True)
+            self.timer.preset_name = timer_config.get("last_preset", "")
+            self.timer_sound_var.set(self.timer.sound_enabled)
+            self.update_timer_display()
+    
     # ========== 窗口关闭方法 ==========
     
     def on_close(self) -> None:
@@ -1414,6 +1691,10 @@ class ClockApp:
         # 停止秒表定时器（如果正在运行）
         if self.stopwatch.is_running:
             self.stopwatch_stop()
+        
+        # 停止倒计时定时器（如果正在运行）
+        if self.timer.is_running:
+            self.timer_stop()
         
         # 获取当前窗口几何信息
         geometry: str = self.root.geometry()
