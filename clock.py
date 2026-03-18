@@ -577,8 +577,32 @@ class ClockApp:
         """
         刷新 UI 以应用新主题（深度递归刷新所有组件）
         """
+        # 更新 ttk 样式
+        style = ttk.Style()
+        style.configure('TFrame', background=self.bg_color)
+        style.configure('TLabel', background=self.bg_color, foreground=self.text_color)
+        style.configure('TRadiobutton', background=self.bg_color, foreground=self.text_color,
+                       selectcolor=self.accent_color)
+        style.configure('TCombobox', fieldbackground=self.bg_color, 
+                       background=self.accent_color, foreground=self.text_color,
+                       arrowcolor=self.text_color)
+        style.configure('TButton', background=self.accent_color, foreground=self.text_color)
+        style.configure('TCheckbutton', background=self.bg_color, foreground=self.text_color)
+        
         # 递归更新所有组件颜色
         self._recursive_update_colors(self.root)
+        
+        # 更新 Canvas 背景色
+        if hasattr(self, 'canvas'):
+            self.canvas.configure(bg=self.face_color)
+        
+        # 更新数码管 Canvas 背景色
+        if hasattr(self, 'seg_canvas'):
+            self.seg_canvas.configure(bg=self.face_color)
+        
+        # 更新秒表 Canvas 背景色
+        if hasattr(self, 'stopwatch_canvas'):
+            self.stopwatch_canvas.configure(bg=self.face_color)
         
         # 重新绘制表盘
         self.draw_clock_face()
@@ -588,6 +612,9 @@ class ClockApp:
             now = datetime.datetime.now()
             time_str = now.strftime("%H:%M:%S")
             self.draw_seven_segment_time(time_str)
+        
+        # 强制刷新窗口
+        self.root.update_idletasks()
     
     def _recursive_update_colors(self, widget: tk.Widget) -> None:
         """
@@ -597,22 +624,36 @@ class ClockApp:
             widget: 要更新的组件
         """
         try:
-            widget.configure(bg=self.bg_color)
-        except tk.TclError:
-            pass  # 某些组件不支持 bg 属性
-        
-        # 更新文字颜色
-        try:
-            widget.configure(fg=self.text_color)
-        except (tk.TclError, AttributeError):
-            pass
-        
-        # 递归更新子组件
-        try:
+            # 根据组件类型更新颜色
+            if isinstance(widget, (tk.Frame, tk.LabelFrame)):
+                widget.configure(bg=self.bg_color)
+            elif isinstance(widget, tk.Label):
+                widget.configure(bg=self.bg_color, fg=self.text_color)
+            elif isinstance(widget, tk.Radiobutton):
+                widget.configure(bg=self.bg_color, fg=self.text_color, selectcolor=self.accent_color,
+                               activebackground=self.bg_color, activeforeground=self.text_color)
+            elif isinstance(widget, ttk.Combobox):
+                widget.configure(style='TCombobox')
+            elif isinstance(widget, tk.Button):
+                widget.configure(bg=self.accent_color, fg=self.text_color,
+                               activebackground=self.bg_color, activeforeground=self.text_color)
+            elif isinstance(widget, ttk.Button):
+                widget.configure(style='TButton')
+            elif isinstance(widget, tk.Canvas):
+                widget.configure(bg=self.face_color)
+            elif isinstance(widget, tk.Listbox):
+                widget.configure(bg=self.face_color, fg=self.text_color, 
+                                selectbackground=self.accent_color, selectforeground=self.text_color)
+            elif isinstance(widget, ttk.Checkbutton):
+                widget.configure(style='TCheckbutton')
+            elif isinstance(widget, tk.Checkbutton):
+                widget.configure(bg=self.bg_color, fg=self.text_color, selectcolor=self.accent_color)
+            
+            # 递归更新子组件
             for child in widget.winfo_children():
                 self._recursive_update_colors(child)
-        except AttributeError:
-            pass  # 某些组件没有 winfo_children
+        except (tk.TclError, AttributeError) as e:
+            pass  # 某些组件不支持某些属性
     
     def setup_ui(self) -> None:
         """设置用户界面"""
@@ -725,67 +766,17 @@ class ClockApp:
         
         # 秒表 UI 框架（初始隐藏）
         self.stopwatch_frame: tk.Frame = tk.Frame(main_frame, bg=self.bg_color)
-        # 不立即 pack，由 update_mode 控制显示
-        
-        # 秒表数字显示画布（7 段数码管风格）
-        self.stopwatch_canvas: tk.Canvas = tk.Canvas(self.stopwatch_frame, width=400, height=100, 
-                                                      bg=self.bg_color, highlightthickness=0)
-        self.stopwatch_canvas.pack(pady=10)
-        
-        # 秒表控制按钮框架
-        self.stopwatch_btn_frame: tk.Frame = tk.Frame(self.stopwatch_frame, bg=self.bg_color)
-        self.stopwatch_btn_frame.pack(pady=10)
-        
-        # 秒表按钮
-        self.sw_start_btn: tk.Button = tk.Button(self.stopwatch_btn_frame, text="▶️ 开始", 
-                                                  command=self.stopwatch_start, width=10,
-                                                  bg="#28a745", fg="#ffffff", font=("Arial", 12, "bold"))
-        self.sw_start_btn.pack(side=tk.LEFT, padx=5)
-        
-        self.sw_stop_btn: tk.Button = tk.Button(self.stopwatch_btn_frame, text="⏹️ 停止", 
-                                                 command=self.stopwatch_stop, width=10,
-                                                 bg="#dc3545", fg="#ffffff", font=("Arial", 12, "bold"),
-                                                 state=tk.DISABLED)
-        self.sw_stop_btn.pack(side=tk.LEFT, padx=5)
-        
-        self.sw_reset_btn: tk.Button = tk.Button(self.stopwatch_btn_frame, text="🔄 复位", 
-                                                  command=self.stopwatch_reset, width=10,
-                                                  bg="#ffc107", fg="#000000", font=("Arial", 12, "bold"))
-        self.sw_reset_btn.pack(side=tk.LEFT, padx=5)
-        
-        self.sw_lap_btn: tk.Button = tk.Button(self.stopwatch_btn_frame, text="📍 计圈", 
-                                                command=self.stopwatch_lap, width=10,
-                                                bg="#17a2b8", fg="#ffffff", font=("Arial", 12, "bold"),
-                                                state=tk.DISABLED)
-        self.sw_lap_btn.pack(side=tk.LEFT, padx=5)
-        
-        # 计圈列表框架
-        self.lap_list_frame: tk.Frame = tk.Frame(self.stopwatch_frame, bg=self.bg_color)
-        self.lap_list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        tk.Label(self.lap_list_frame, text="⏱️ 计圈记录", font=("Arial", 12, "bold"),
-                 bg=self.bg_color, fg=self.text_color).pack(pady=5)
-        
-        # 计圈列表框
-        self.lap_listbox: tk.Listbox = tk.Listbox(self.lap_list_frame, height=8, 
-                                                   font=("Courier", 11), bg=self.face_color, 
-                                                   fg=self.text_color, selectbackground=self.accent_color)
-        self.lap_listbox.pack(fill=tk.BOTH, expand=True)
-        
-        # 计圈列表滚动条
-        lap_scrollbar: tk.Scrollbar = tk.Scrollbar(self.lap_list_frame, orient=tk.VERTICAL, 
-                                                    command=self.lap_listbox.yview)
-        lap_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.lap_listbox.config(yscrollcommand=lap_scrollbar.set)
-        
-        # Stopwatch display frame (初始隐藏)
-        self.stopwatch_frame: tk.Frame = tk.Frame(main_frame, bg=self.bg_color)
         
         # 秒表时间显示
         self.stopwatch_time_var: tk.StringVar = tk.StringVar(value="00:00:00.00")
         self.stopwatch_label: tk.Label = tk.Label(self.stopwatch_frame, textvariable=self.stopwatch_time_var,
-                                                   font=("Courier New", 48, "bold"), bg=self.bg_color, fg=self.text_color)
+                                                   font=("Courier New", 48, "bold"), bg=self.bg_color, 
+                                                   fg=self.seg_color_on, relief=tk.FLAT)
         self.stopwatch_label.pack(pady=20)
+        
+        # 呼吸灯效果控制
+        self.breath_phase: float = 0.0  # 呼吸相位 (0-2π)
+        self.breath_job: Optional[str] = None
         
         # 秒表按钮
         sw_btn_frame: tk.Frame = tk.Frame(self.stopwatch_frame, bg=self.bg_color)
@@ -803,7 +794,8 @@ class ClockApp:
         
         # 计次记录列表
         self.lap_listbox: tk.Listbox = tk.Listbox(self.stopwatch_frame, font=("Courier New", 12),
-                                                   bg=self.face_color, fg=self.text_color, height=8, width=30)
+                                                   bg=self.face_color, fg=self.text_color, height=8, width=30,
+                                                   selectbackground=self.accent_color, selectforeground=self.text_color)
         self.lap_listbox.pack(pady=10)
         
         # 倒计时 UI 框架（初始隐藏）
@@ -1023,6 +1015,9 @@ class ClockApp:
                 self.root.after_cancel(self.stopwatch_job)
                 self.stopwatch_job = None
         
+        # 停止呼吸灯
+        self._stop_breath_effect()
+        
         # 重置状态
         self.stopwatch.elapsed_ms = 0
         self.stopwatch.laps = []
@@ -1031,6 +1026,11 @@ class ClockApp:
         
         # 清空计次列表
         self.lap_listbox.delete(0, tk.END)
+        
+        # 恢复主题色
+        if hasattr(self, 'seg_color_on'):
+            self.stopwatch_label.config(fg=self.seg_color_on)
+        
         print("⏱️ 秒表已重置")
     
     def record_lap(self) -> None:
@@ -1082,11 +1082,21 @@ class ClockApp:
             delta_ms = int((current_time - self.stopwatch.start_time) * 1000)
             total_ms = self.stopwatch.elapsed_ms + delta_ms
             self.stopwatch_time_var.set(self._format_time_ms(total_ms))
+            
+            # 运行时启动呼吸灯效果
+            if not self.breath_job:
+                self._start_breath_effect()
+            
             # 继续更新 (每 10ms)
             self.stopwatch_job = self.root.after(10, self._update_stopwatch_display)
         else:
             # 停止状态，显示累计时间
             self.stopwatch_time_var.set(self._format_time_ms(self.stopwatch.elapsed_ms))
+            # 停止呼吸灯
+            self._stop_breath_effect()
+            # 恢复主题色
+            if hasattr(self, 'seg_color_on'):
+                self.stopwatch_label.config(fg=self.seg_color_on)
     
     def _format_time_ms(self, ms: int) -> str:
         """格式化时间为 HH:MM:SS.ms 格式"""
@@ -1095,6 +1105,47 @@ class ClockApp:
         seconds = (ms % 60000) // 1000
         milliseconds = ms % 1000
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:02d}"
+    
+    def _start_breath_effect(self) -> None:
+        """启动呼吸灯效果"""
+        self._update_breath_effect()
+    
+    def _stop_breath_effect(self) -> None:
+        """停止呼吸灯效果"""
+        if self.breath_job:
+            self.root.after_cancel(self.breath_job)
+            self.breath_job = None
+    
+    def _update_breath_effect(self) -> None:
+        """更新呼吸灯效果（颜色渐变）"""
+        import math
+        
+        # 更新呼吸相位
+        self.breath_phase += 0.1
+        if self.breath_phase > 2 * math.pi:
+            self.breath_phase -= 2 * math.pi
+        
+        # 计算呼吸因子 (0.3 - 1.0)
+        breath_factor = 0.65 + 0.35 * math.sin(self.breath_phase)
+        
+        # 根据主题色计算当前颜色
+        if hasattr(self, 'seg_color_on'):
+            # 将十六进制颜色转换为 RGB
+            r = int(self.seg_color_on[1:3], 16)
+            g = int(self.seg_color_on[3:5], 16)
+            b = int(self.seg_color_on[5:7], 16)
+            
+            # 应用呼吸因子（变暗）
+            r = int(r * breath_factor)
+            g = int(g * breath_factor)
+            b = int(b * breath_factor)
+            
+            # 转换回十六进制
+            breath_color = f"#{r:02x}{g:02x}{b:02x}"
+            self.stopwatch_label.config(fg=breath_color)
+        
+        # 继续更新
+        self.breath_job = self.root.after(50, self._update_breath_effect)
     
     def draw_clock_face(self) -> None:
         """绘制时钟表盘"""
