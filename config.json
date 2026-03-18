@@ -1,17 +1,17 @@
 {
   "breath_light": {
     "enabled": true,
-    "mode": "glow",
-    "frequency": 0.8,
-    "intensity": 0.6,
+    "mode": "digital",
+    "style": "soft",
+    "frequency": 0.5,
+    "intensity": 0.5,
     "color_scheme": {
       "normal": "#00d4aa",
-      "warning": "#ff9500",
+      "warning": "#ffb347",
       "completed": "#ff6b6b"
     },
     "accelerate_on_complete": true,
-    "glow_radius": 20,
-    "use_gradient": true
+    "smooth_curve": true
   },
   "display_mode": "analog",
   "stopwatch": {
