@@ -575,20 +575,10 @@ class ClockApp:
     
     def refresh_ui(self) -> None:
         """
-        刷新 UI 以应用新主题
+        刷新 UI 以应用新主题（深度递归刷新所有组件）
         """
-        # 更新主框架背景色
-        for widget in self.root.winfo_children():
-            if isinstance(widget, tk.Frame):
-                widget.configure(bg=self.bg_color)
-                # 更新子组件
-                for child in widget.winfo_children():
-                    if isinstance(child, tk.Frame):
-                        child.configure(bg=self.bg_color)
-                    elif isinstance(child, tk.Label):
-                        child.configure(bg=self.bg_color, fg=self.text_color)
-                    elif isinstance(child, tk.Radiobutton):
-                        child.configure(bg=self.bg_color, fg=self.text_color, selectcolor=self.accent_color)
+        # 递归更新所有组件颜色
+        self._recursive_update_colors(self.root)
         
         # 重新绘制表盘
         self.draw_clock_face()
@@ -598,6 +588,31 @@ class ClockApp:
             now = datetime.datetime.now()
             time_str = now.strftime("%H:%M:%S")
             self.draw_seven_segment_time(time_str)
+    
+    def _recursive_update_colors(self, widget: tk.Widget) -> None:
+        """
+        递归更新组件颜色
+        
+        Args:
+            widget: 要更新的组件
+        """
+        try:
+            widget.configure(bg=self.bg_color)
+        except tk.TclError:
+            pass  # 某些组件不支持 bg 属性
+        
+        # 更新文字颜色
+        try:
+            widget.configure(fg=self.text_color)
+        except (tk.TclError, AttributeError):
+            pass
+        
+        # 递归更新子组件
+        try:
+            for child in widget.winfo_children():
+                self._recursive_update_colors(child)
+        except AttributeError:
+            pass  # 某些组件没有 winfo_children
     
     def setup_ui(self) -> None:
         """设置用户界面"""
@@ -1112,11 +1127,18 @@ class ClockApp:
         self.canvas.create_oval(cx-5, cy-5, cx+5, cy+5, fill=self.hand_color)
     
     def draw_segment(self, x1: float, y1: float, x2: float, y2: float, active: bool) -> None:
-        """绘制单个段"""
-        color: str = self.seg_color_on if active else self.seg_color_off
-        # 绘制梯形段，模拟真实数码管
-        thickness: int = self.seg_thickness
-        self.seg_canvas.create_line(x1, y1, x2, y2, fill=color, width=thickness, capstyle=tk.ROUND)
+        """绘制单个段（带轻微发光效果）"""
+        if active:
+            # 激活状态：使用 brighter 颜色和加粗线条模拟发光
+            color: str = self.seg_color_on
+            thickness: int = self.seg_thickness + 2  # 加粗线条模拟发光
+        else:
+            # 未激活状态：使用较暗的颜色
+            color: str = self.seg_color_off
+            thickness: int = self.seg_thickness
+        
+        self.seg_canvas.create_line(x1, y1, x2, y2, fill=color, width=thickness, 
+                                    capstyle=tk.ROUND, joinstyle=tk.ROUND)
     
     def draw_digit(self, digit: int, x_offset: float) -> None:
         """绘制 7 段数码管数字"""

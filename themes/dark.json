@@ -3,12 +3,18 @@
   "display_name": "Dark - 深色模式",
   "description": "现代深色主题，适合夜间使用",
   "colors": {
-    "background": "#1a1a2e",
+    "background": "#151525",
     "face": "#16213e",
     "hand": "#e94560",
     "text": "#ffffff",
     "accent": "#0f3460",
-    "segment_on": "#ff3333",
-    "segment_off": "#331111"
+    "segment_on": "#ff4444",
+    "segment_off": "#2a1111"
+  },
+  "effects": {
+    "glow_enabled": true,
+    "glow_color": "#ff4444",
+    "glow_intensity": 0.6,
+    "breathing_animation": false
   }
 }

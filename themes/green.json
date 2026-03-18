@@ -3,12 +3,18 @@
   "display_name": "Green - 护眼绿",
   "description": "护眼绿色主题，适合夜间模式",
   "colors": {
-    "background": "#0d2818",
-    "face": "#1a3d2a",
+    "background": "#081a10",
+    "face": "#122b1d",
     "hand": "#4ade80",
     "text": "#86efac",
-    "accent": "#14532d",
+    "accent": "#0f3b26",
     "segment_on": "#22c55e",
-    "segment_off": "#134e4a"
+    "segment_off": "#052a2a"
+  },
+  "effects": {
+    "glow_enabled": true,
+    "glow_color": "#22c55e",
+    "glow_intensity": 0.7,
+    "breathing_animation": false
   }
 }
