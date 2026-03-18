@@ -1,0 +1,14 @@
+{
+  "name": "cyberpunk",
+  "display_name": "Cyberpunk - 赛博朋克",
+  "description": "炫酷霓虹风格，紫色/粉色主题",
+  "colors": {
+    "background": "#0f0f1a",
+    "face": "#1a1a2e",
+    "hand": "#ff00ff",
+    "text": "#ff69b4",
+    "accent": "#9932cc",
+    "segment_on": "#ff1493",
+    "segment_off": "#4b0082"
+  }
+}

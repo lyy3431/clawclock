@@ -1,21 +1,25 @@
 {
-  "timezone": "Asia/Shanghai",
   "display_mode": "analog",
-  "window": {
-    "width": 600,
-    "height": 500,
-    "resizable": false
-  },
   "theme": {
-    "name": "dark",
     "colors": {
+      "accent": "#0f3460",
       "background": "#1a1a2e",
       "face": "#16213e",
       "hand": "#e94560",
-      "text": "#ffffff",
-      "accent": "#0f3460",
+      "segment_off": "#331111",
       "segment_on": "#ff3333",
-      "segment_off": "#331111"
-    }
+      "text": "#ffffff"
+    },
+    "name": "dark"
+  },
+  "timezone": "Asia/Shanghai",
+  "window": {
+    "always_on_top": false,
+    "fullscreen": false,
+    "height": 500,
+    "resizable": false,
+    "width": 600,
+    "x": 0,
+    "y": 0
   }
 }

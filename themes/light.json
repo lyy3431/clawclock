@@ -1,0 +1,14 @@
+{
+  "name": "light",
+  "display_name": "Light - 经典白",
+  "description": "经典白色主题，适合办公场景",
+  "colors": {
+    "background": "#ffffff",
+    "face": "#f0f0f0",
+    "hand": "#0066cc",
+    "text": "#000000",
+    "accent": "#e0e0e0",
+    "segment_on": "#0066ff",
+    "segment_off": "#cccccc"
+  }
+}
