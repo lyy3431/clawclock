@@ -31,7 +31,7 @@ from enum import Enum
 
 # 导入呼吸灯模块
 try:
-    from breath_light import BreathLightEffect, BreathLightConfig, BreathMode, TimerStatus
+    from breath_light import BreathLightEffect, BreathLightConfig, BreathMode, BreathStyle, TimerStatus
 except ImportError:
     # 如果模块不存在，使用占位类
     class BreathLightEffect:
@@ -47,15 +47,22 @@ except ImportError:
     class BreathLightConfig:
         def __init__(self, **kwargs):
             self.enabled = kwargs.get('enabled', True)
-            self.mode = kwargs.get('mode', BreathMode.DIGITAL if BreathMode else 'digital')
-            self.frequency = kwargs.get('frequency', 1.0)
-            self.intensity = kwargs.get('intensity', 0.7)
+            self.mode = kwargs.get('mode', 'digital')
+            self.style = kwargs.get('style', 'soft')
+            self.frequency = kwargs.get('frequency', 0.5)
+            self.intensity = kwargs.get('intensity', 0.5)
     
     class BreathMode:
         DIGITAL = "digital"
         BACKGROUND = "background"
         BORDER = "border"
         ALL = "all"
+    
+    class BreathStyle:
+        SOFT = "soft"
+        TECH = "tech"
+        COOL = "cool"
+        MINIMAL = "minimal"
     
     class TimerStatus:
         NORMAL = "normal"
@@ -1120,12 +1127,14 @@ class TimerWidget:
         breath_light_config = BreathLightConfig(
             enabled=breath_config.get('enabled', True),
             mode=BreathMode(breath_config.get('mode', 'digital')),
-            frequency=breath_config.get('frequency', 1.0),
-            intensity=breath_config.get('intensity', 0.7),
-            normal_color=breath_config.get('color_scheme', {}).get('normal', '#00ff88'),
-            warning_color=breath_config.get('color_scheme', {}).get('warning', '#ffaa00'),
-            completed_color=breath_config.get('color_scheme', {}).get('completed', '#ff3333'),
-            accelerate_on_complete=breath_config.get('accelerate_on_complete', True)
+            style=BreathStyle(breath_config.get('style', 'soft')),
+            frequency=breath_config.get('frequency', 0.5),
+            intensity=breath_config.get('intensity', 0.5),
+            normal_color=breath_config.get('color_scheme', {}).get('normal', '#00d4aa'),
+            warning_color=breath_config.get('color_scheme', {}).get('warning', '#ffb347'),
+            completed_color=breath_config.get('color_scheme', {}).get('completed', '#ff6b6b'),
+            accelerate_on_complete=breath_config.get('accelerate_on_complete', True),
+            smooth_curve=breath_config.get('smooth_curve', True)
         )
         
         self.breath_light = BreathLightEffect(breath_light_config)

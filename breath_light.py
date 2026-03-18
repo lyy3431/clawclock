@@ -6,18 +6,18 @@
 功能:
     - 倒计时运行时，数字/背景呈现呼吸式明暗变化
     - 呼吸频率可配置（默认 1-2 秒/周期）
-    - 使用正弦波实现呼吸效果
-    - 多种呼吸模式：数字呼吸、背景呼吸、边框呼吸
-    - 时间到特殊效果：呼吸加速、颜色变化
+    - 使用改进的缓动函数实现更平滑的呼吸效果
+    - 多种呼吸灯风格可选
+    - 时间到特殊效果：呼吸加速、颜色渐变
 
 作者：ClawClock Development Team
-版本：1.5.0
+版本：1.5.1
 """
 
 import tkinter as tk
 import math
 import time
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
 
@@ -28,6 +28,14 @@ class BreathMode(Enum):
     BACKGROUND = "background"  # 背景呼吸（窗口背景色渐变）
     BORDER = "border"        # 边框呼吸（窗口边框光晕效果）
     ALL = "all"              # 全部模式
+
+
+class BreathStyle(Enum):
+    """呼吸灯风格枚举"""
+    SOFT = "soft"              # 柔和模式（默认）- 温暖渐变
+    TECH = "tech"              # 科技模式 - 蓝紫色调
+    COOL = "cool"              # 炫酷模式 - 彩虹渐变
+    MINIMAL = "minimal"        # 简约模式 - 单色明暗
 
 
 class TimerStatus(Enum):
@@ -42,19 +50,50 @@ class BreathLightConfig:
     """呼吸灯配置数据类"""
     enabled: bool = True
     mode: BreathMode = BreathMode.DIGITAL
-    frequency: float = 1.0  # 呼吸频率（周期/秒）
-    intensity: float = 0.7  # 呼吸强度（0-1）
+    style: BreathStyle = BreathStyle.SOFT  # 呼吸灯风格
+    frequency: float = 0.5  # 呼吸频率（周期/秒）- 降低默认值使呼吸更慢更柔和
+    intensity: float = 0.5  # 呼吸强度（0-1）- 降低默认值使变化更柔和
     normal_color: str = "#00ff88"  # 正常状态颜色
     warning_color: str = "#ffaa00"  # 警告状态颜色
     completed_color: str = "#ff3333"  # 完成状态颜色
     accelerate_on_complete: bool = True  # 时间到时加速呼吸
+    smooth_curve: bool = True  # 使用平滑缓动曲线
+
+
+# 呼吸灯风格配色方案
+BREATH_STYLE_COLORS = {
+    BreathStyle.SOFT: {
+        "normal": "#00d4aa",      # 柔和的青绿色
+        "warning": "#ffb347",     # 温暖的橙色
+        "completed": "#ff6b6b",   # 柔和的红色
+        "gradient": ["#00d4aa", "#00a896", "#007f85"]  # 渐变色
+    },
+    BreathStyle.TECH: {
+        "normal": "#7b68ee",      # 中紫色
+        "warning": "#ff1493",     # 深粉色
+        "completed": "#9400d3",   # 深紫罗兰色
+        "gradient": ["#7b68ee", "#6a5acd", "#483d8b"]  # 蓝紫渐变
+    },
+    BreathStyle.COOL: {
+        "normal": "#00ffff",      # 青色
+        "warning": "#ff00ff",     # 品红色
+        "completed": "#ffff00",   # 黄色
+        "gradient": ["#ff0000", "#ff7f00", "#ffff00", "#00ff00", "#00ffff", "#0000ff", "#8b00ff"]  # 彩虹
+    },
+    BreathStyle.MINIMAL: {
+        "normal": "#ffffff",      # 白色
+        "warning": "#ffcc00",     # 琥珀色
+        "completed": "#ff4444",   # 红色
+        "gradient": ["#ffffff", "#cccccc", "#999999"]  # 灰度渐变
+    }
+}
 
 
 class BreathLightEffect:
     """
     呼吸灯效果核心类
     
-    提供正弦波呼吸效果，支持多种模式和颜色主题
+    提供改进的正弦波呼吸效果，支持多种风格和颜色主题
     
     Attributes:
         config: 呼吸灯配置
@@ -75,9 +114,23 @@ class BreathLightEffect:
         self._start_time: float = 0.0
         self._current_brightness: float = 0.5
         self._animation_job: Optional[str] = None
+        self._rainbow_offset: float = 0.0  # 彩虹模式的色相偏移
         
         # 颜色解析缓存
         self._color_cache: Dict[str, Tuple[int, int, int]] = {}
+        
+        # 应用风格配色
+        self._apply_style_colors()
+    
+    def _apply_style_colors(self) -> None:
+        """应用呼吸灯风格的配色方案"""
+        if self.config.style in BREATH_STYLE_COLORS:
+            colors = BREATH_STYLE_COLORS[self.config.style]
+            # 只有在用户没有自定义颜色时才应用风格默认色
+            if not hasattr(self, '_user_customized_colors'):
+                self.config.normal_color = colors["normal"]
+                self.config.warning_color = colors["warning"]
+                self.config.completed_color = colors["completed"]
     
     def start(self, root: tk.Tk, callback: callable) -> None:
         """
@@ -116,7 +169,119 @@ class BreathLightEffect:
         Args:
             status: 倒计时状态
         """
+        old_status = self.status
         self.status = status
+        
+        # 状态变化时重置计时器，使过渡更平滑
+        if old_status != status and status == TimerStatus.COMPLETED:
+            self._start_time = time.time()
+    
+    def _ease_in_out_sine(self, t: float) -> float:
+        """
+        平滑的正弦缓动函数（in-out）
+        
+        Args:
+            t: 输入值 (0-1)
+            
+        Returns:
+            缓动后的值
+        """
+        return -(math.cos(math.pi * t) - 1) / 2
+    
+    def _ease_in_out_quad(self, t: float) -> float:
+        """
+        二次缓动函数（in-out）
+        
+        Args:
+            t: 输入值 (0-1)
+            
+        Returns:
+            缓动后的值
+        """
+        return t * t if t < 0.5 else 1 - pow(-2 * t + 2, 2) / 2
+    
+    def _calculate_smooth_brightness(self, elapsed: float, frequency: float) -> float:
+        """
+        使用平滑缓动函数计算亮度
+        
+        Args:
+            elapsed: 经过的时间
+            frequency: 呼吸频率
+            
+        Returns:
+            亮度值 (0-1)
+        """
+        # 计算呼吸周期位置 (0-1)
+        cycle_position = (elapsed * frequency) % 1.0
+        
+        # 使用平滑缓动函数
+        if self.config.smooth_curve:
+            # 结合正弦波和缓动函数，创造更自然的呼吸效果
+            base_breath = (math.sin(elapsed * frequency * 2 * math.pi) + 1) / 2
+            eased_breath = self._ease_in_out_sine(cycle_position)
+            # 混合两种曲线（70% 正弦 + 30% 缓动）
+            brightness = base_breath * 0.7 + eased_breath * 0.3
+        else:
+            brightness = (math.sin(elapsed * frequency * 2 * math.pi) + 1) / 2
+        
+        return brightness
+    
+    def _calculate_rainbow_color(self, elapsed: float) -> str:
+        """
+        计算彩虹渐变的当前颜色
+        
+        Args:
+            elapsed: 经过的时间
+            
+        Returns:
+            颜色十六进制字符串
+        """
+        # 彩虹渐变速度
+        speed = 0.5  # 每秒变化的色相
+        
+        # 计算色相偏移
+        hue_offset = (elapsed * speed) % 1.0
+        
+        # 获取彩虹渐变色
+        gradient = BREATH_STYLE_COLORS[BreathStyle.COOL]["gradient"]
+        num_colors = len(gradient)
+        
+        # 计算当前在渐变中的位置
+        position = hue_offset * (num_colors - 1)
+        idx1 = int(position)
+        idx2 = min(idx1 + 1, num_colors - 1)
+        factor = position - idx1
+        
+        # 插值颜色
+        color1 = gradient[idx1]
+        color2 = gradient[idx2]
+        return self._interpolate_color(color1, color2, factor)
+    
+    def _interpolate_color(self, color1: str, color2: str, factor: float) -> str:
+        """
+        在两种颜色之间插值
+        
+        Args:
+            color1: 起始颜色
+            color2: 结束颜色
+            factor: 插值因子 (0-1)
+            
+        Returns:
+            插值后的颜色
+        """
+        r1, g1, b1 = self._hex_to_rgb(color1)
+        r2, g2, b2 = self._hex_to_rgb(color2)
+        
+        r = int(r1 + (r2 - r1) * factor)
+        g = int(g1 + (g2 - g1) * factor)
+        b = int(b1 + (b2 - b1) * factor)
+        
+        return f"#{r:02x}{g:02x}{b:02x}"
+    
+    def _hex_to_rgb(self, hex_color: str) -> Tuple[int, int, int]:
+        """十六进制颜色转 RGB"""
+        hex_color = hex_color.lstrip('#')
+        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
     
     def _animate(self, root: tk.Tk, callback: callable) -> None:
         """
@@ -135,21 +300,26 @@ class BreathLightEffect:
         # 根据状态调整频率
         frequency = self.config.frequency
         if self.status == TimerStatus.COMPLETED and self.config.accelerate_on_complete:
-            frequency *= 3  # 时间到时频率加快 3 倍
+            frequency *= 2.5  # 时间到时频率加快（从 3 倍降低到 2.5 倍，更柔和）
         elif self.status == TimerStatus.WARNING:
-            frequency *= 1.5  # 警告时频率加快 1.5 倍
+            frequency *= 1.5  # 警告时频率加快
         
-        # 使用正弦波计算亮度
-        brightness = (math.sin(elapsed * frequency * 2 * math.pi) + 1) / 2
+        # 计算亮度（使用平滑曲线）
+        brightness = self._calculate_smooth_brightness(elapsed, frequency)
         
         # 应用强度
         intensity = self.config.intensity
+        # 使用更柔和的强度应用方式
         brightness = 0.5 + (brightness - 0.5) * intensity
         
         # 确保亮度在 0-1 范围内
         brightness = max(0.0, min(1.0, brightness))
         
         self._current_brightness = brightness
+        
+        # 更新彩虹模式的色相偏移
+        if self.config.style == BreathStyle.COOL:
+            self._rainbow_offset = elapsed
         
         # 调用回调更新显示
         try:
@@ -167,6 +337,11 @@ class BreathLightEffect:
         Returns:
             颜色十六进制字符串
         """
+        # 彩虹模式特殊处理
+        if self.config.style == BreathStyle.COOL:
+            elapsed = time.time() - self._start_time
+            return self._calculate_rainbow_color(elapsed)
+        
         if self.status == TimerStatus.COMPLETED:
             return self.config.completed_color
         elif self.status == TimerStatus.WARNING:
@@ -193,8 +368,9 @@ class BreathLightEffect:
         
         r, g, b = self._color_cache[base_color]
         
-        # 应用亮度（变暗效果）
-        factor = 0.3 + 0.7 * brightness  # 最小亮度 30%
+        # 应用亮度（使用更平滑的变暗曲线）
+        # 最小亮度从 30% 提升到 40%，避免过暗
+        factor = 0.4 + 0.6 * brightness
         r = int(r * factor)
         g = int(g * factor)
         b = int(b * factor)
@@ -211,12 +387,17 @@ class BreathLightEffect:
         for key, value in kwargs.items():
             if hasattr(self.config, key):
                 setattr(self.config, key, value)
+        
+        # 如果风格改变，应用新的配色
+        if 'style' in kwargs:
+            self._apply_style_colors()
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
             "enabled": self.config.enabled,
             "mode": self.config.mode.value,
+            "style": self.config.style.value,
             "frequency": self.config.frequency,
             "intensity": self.config.intensity,
             "color_scheme": {
@@ -224,7 +405,8 @@ class BreathLightEffect:
                 "warning": self.config.warning_color,
                 "completed": self.config.completed_color
             },
-            "accelerate_on_complete": self.config.accelerate_on_complete
+            "accelerate_on_complete": self.config.accelerate_on_complete,
+            "smooth_curve": self.config.smooth_curve
         }
     
     @classmethod
@@ -233,12 +415,14 @@ class BreathLightEffect:
         config = BreathLightConfig(
             enabled=data.get("enabled", True),
             mode=BreathMode(data.get("mode", "digital")),
-            frequency=data.get("frequency", 1.0),
-            intensity=data.get("intensity", 0.7),
-            normal_color=data.get("color_scheme", {}).get("normal", "#00ff88"),
-            warning_color=data.get("color_scheme", {}).get("warning", "#ffaa00"),
-            completed_color=data.get("color_scheme", {}).get("completed", "#ff3333"),
-            accelerate_on_complete=data.get("accelerate_on_complete", True)
+            style=BreathStyle(data.get("style", "soft")),
+            frequency=data.get("frequency", 0.5),
+            intensity=data.get("intensity", 0.5),
+            normal_color=data.get("color_scheme", {}).get("normal", "#00d4aa"),
+            warning_color=data.get("color_scheme", {}).get("warning", "#ffb347"),
+            completed_color=data.get("color_scheme", {}).get("completed", "#ff6b6b"),
+            accelerate_on_complete=data.get("accelerate_on_complete", True),
+            smooth_curve=data.get("smooth_curve", True)
         )
         return cls(config)
 
@@ -385,26 +569,37 @@ def interpolate_color(color1: str, color2: str, factor: float) -> str:
 
 if __name__ == "__main__":
     # 测试代码
-    print("🫧 呼吸灯效果模块测试")
+    print("🫧 呼吸灯效果模块测试 v1.5.1")
+    print("=" * 50)
     
     # 测试配置
     config = BreathLightConfig(
         enabled=True,
         mode=BreathMode.DIGITAL,
-        frequency=1.0,
-        intensity=0.7
+        style=BreathStyle.SOFT,
+        frequency=0.5,
+        intensity=0.5
     )
     
     effect = BreathLightEffect(config)
     print(f"✅ 呼吸灯效果初始化成功")
     print(f"   模式：{config.mode.value}")
+    print(f"   风格：{config.style.value}")
     print(f"   频率：{config.frequency} Hz")
     print(f"   强度：{config.intensity}")
     
+    # 测试不同风格
+    print("\n📋 测试不同呼吸灯风格:")
+    for style in BreathStyle:
+        config.style = style
+        effect._apply_style_colors()
+        print(f"   • {style.value}: {effect.config.normal_color}")
+    
     # 测试颜色转换
-    test_color = "#00ff88"
+    test_color = "#00d4aa"
     bright_color = effect.apply_brightness_to_color(test_color, 1.0)
     dim_color = effect.apply_brightness_to_color(test_color, 0.0)
+    print(f"\n🎨 测试颜色转换:")
     print(f"   测试颜色：{test_color}")
     print(f"   最亮：{bright_color}")
     print(f"   最暗：{dim_color}")
