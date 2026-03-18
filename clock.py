@@ -69,6 +69,24 @@ class Alarm:
         return False
 
 
+@dataclass
+class LapRecord:
+    """计次记录数据类"""
+    lap_number: int
+    time_ms: int  # 累计时间 (毫秒)
+    split_ms: int  # 单圈时间 (毫秒)
+    timestamp: datetime.datetime = field(default_factory=datetime.datetime.now)
+
+
+@dataclass
+class StopwatchState:
+    """秒表状态数据类"""
+    is_running: bool = False
+    start_time: float = 0.0  # time.time() 时间戳
+    elapsed_ms: int = 0  # 累计经过的时间 (毫秒)
+    laps: List[LapRecord] = field(default_factory=list)
+
+
 class ClockApp:
     """
     时钟应用主类
@@ -98,6 +116,10 @@ class ClockApp:
         self.alarms: List[Alarm] = []
         self.alarm_triggered: bool = False
         self._load_alarms()
+        
+        # 初始化秒表状态
+        self.stopwatch: StopwatchState = StopwatchState()
+        self.stopwatch_job: Optional[str] = None  # 用于取消定时器
         
         # 应用窗口配置
         width: int = self.config.get("window", {}).get("width", 600)
@@ -216,7 +238,10 @@ class ClockApp:
                     "segment_off": "#331111"
                 }
             },
-            "alarms": []
+            "alarms": [],
+            "stopwatch": {
+                "laps": []
+            }
         }
         
         try:
@@ -603,7 +628,7 @@ class ClockApp:
         self.theme_name_to_display: Dict[str, str] = theme_name_to_display
         self.theme_display_to_name: Dict[str, str] = {v: k for k, v in theme_name_to_display.items()}
         
-        # Mode toggle - 只保留 Analog 和 Digital（从配置加载）
+        # Mode toggle - Analog, Digital, Stopwatch
         self.mode_var: tk.StringVar = tk.StringVar(value=self.display_mode)
         mode_frame: tk.Frame = tk.Frame(main_frame, bg=self.bg_color)
         mode_frame.pack(pady=(0, 10))
@@ -612,6 +637,9 @@ class ClockApp:
                        bg=self.bg_color, fg=self.text_color, selectcolor=self.accent_color,
                        command=self.update_mode).pack(side=tk.LEFT, padx=5)
         tk.Radiobutton(mode_frame, text="Digital", variable=self.mode_var, value="digital", 
+                       bg=self.bg_color, fg=self.text_color, selectcolor=self.accent_color,
+                       command=self.update_mode).pack(side=tk.LEFT, padx=5)
+        tk.Radiobutton(mode_frame, text="⏱️ 秒表", variable=self.mode_var, value="stopwatch", 
                        bg=self.bg_color, fg=self.text_color, selectcolor=self.accent_color,
                        command=self.update_mode).pack(side=tk.LEFT, padx=5)
         
@@ -654,6 +682,89 @@ class ClockApp:
         self.date_label: tk.Label = tk.Label(self.digital_frame, text="", font=("Arial", 14), 
                                               bg=self.bg_color, fg=self.text_color)
         self.date_label.pack(pady=10)
+        
+        # 秒表 UI 框架（初始隐藏）
+        self.stopwatch_frame: tk.Frame = tk.Frame(main_frame, bg=self.bg_color)
+        # 不立即 pack，由 update_mode 控制显示
+        
+        # 秒表数字显示画布（7 段数码管风格）
+        self.stopwatch_canvas: tk.Canvas = tk.Canvas(self.stopwatch_frame, width=400, height=100, 
+                                                      bg=self.bg_color, highlightthickness=0)
+        self.stopwatch_canvas.pack(pady=10)
+        
+        # 秒表控制按钮框架
+        self.stopwatch_btn_frame: tk.Frame = tk.Frame(self.stopwatch_frame, bg=self.bg_color)
+        self.stopwatch_btn_frame.pack(pady=10)
+        
+        # 秒表按钮
+        self.sw_start_btn: tk.Button = tk.Button(self.stopwatch_btn_frame, text="▶️ 开始", 
+                                                  command=self.stopwatch_start, width=10,
+                                                  bg="#28a745", fg="#ffffff", font=("Arial", 12, "bold"))
+        self.sw_start_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.sw_stop_btn: tk.Button = tk.Button(self.stopwatch_btn_frame, text="⏹️ 停止", 
+                                                 command=self.stopwatch_stop, width=10,
+                                                 bg="#dc3545", fg="#ffffff", font=("Arial", 12, "bold"),
+                                                 state=tk.DISABLED)
+        self.sw_stop_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.sw_reset_btn: tk.Button = tk.Button(self.stopwatch_btn_frame, text="🔄 复位", 
+                                                  command=self.stopwatch_reset, width=10,
+                                                  bg="#ffc107", fg="#000000", font=("Arial", 12, "bold"))
+        self.sw_reset_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.sw_lap_btn: tk.Button = tk.Button(self.stopwatch_btn_frame, text="📍 计圈", 
+                                                command=self.stopwatch_lap, width=10,
+                                                bg="#17a2b8", fg="#ffffff", font=("Arial", 12, "bold"),
+                                                state=tk.DISABLED)
+        self.sw_lap_btn.pack(side=tk.LEFT, padx=5)
+        
+        # 计圈列表框架
+        self.lap_list_frame: tk.Frame = tk.Frame(self.stopwatch_frame, bg=self.bg_color)
+        self.lap_list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        tk.Label(self.lap_list_frame, text="⏱️ 计圈记录", font=("Arial", 12, "bold"),
+                 bg=self.bg_color, fg=self.text_color).pack(pady=5)
+        
+        # 计圈列表框
+        self.lap_listbox: tk.Listbox = tk.Listbox(self.lap_list_frame, height=8, 
+                                                   font=("Courier", 11), bg=self.face_color, 
+                                                   fg=self.text_color, selectbackground=self.accent_color)
+        self.lap_listbox.pack(fill=tk.BOTH, expand=True)
+        
+        # 计圈列表滚动条
+        lap_scrollbar: tk.Scrollbar = tk.Scrollbar(self.lap_list_frame, orient=tk.VERTICAL, 
+                                                    command=self.lap_listbox.yview)
+        lap_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.lap_listbox.config(yscrollcommand=lap_scrollbar.set)
+        
+        # Stopwatch display frame (初始隐藏)
+        self.stopwatch_frame: tk.Frame = tk.Frame(main_frame, bg=self.bg_color)
+        
+        # 秒表时间显示
+        self.stopwatch_time_var: tk.StringVar = tk.StringVar(value="00:00:00.00")
+        self.stopwatch_label: tk.Label = tk.Label(self.stopwatch_frame, textvariable=self.stopwatch_time_var,
+                                                   font=("Courier New", 48, "bold"), bg=self.bg_color, fg=self.text_color)
+        self.stopwatch_label.pack(pady=20)
+        
+        # 秒表按钮
+        sw_btn_frame: tk.Frame = tk.Frame(self.stopwatch_frame, bg=self.bg_color)
+        sw_btn_frame.pack(pady=10)
+        
+        self.sw_start_btn: tk.Button = tk.Button(sw_btn_frame, text="▶️ 开始", command=self.toggle_stopwatch,
+                                                  bg=self.accent_color, fg=self.text_color, font=("Arial", 12), width=10)
+        self.sw_start_btn.pack(side=tk.LEFT, padx=10)
+        
+        tk.Button(sw_btn_frame, text="🔄 重置", command=self.reset_stopwatch,
+                  bg=self.accent_color, fg=self.text_color, font=("Arial", 12), width=10).pack(side=tk.LEFT, padx=10)
+        
+        tk.Button(sw_btn_frame, text="🏁 计次", command=self.record_lap,
+                  bg=self.accent_color, fg=self.text_color, font=("Arial", 12), width=10).pack(side=tk.LEFT, padx=10)
+        
+        # 计次记录列表
+        self.lap_listbox: tk.Listbox = tk.Listbox(self.stopwatch_frame, font=("Courier New", 12),
+                                                   bg=self.face_color, fg=self.text_color, height=8, width=30)
+        self.lap_listbox.pack(pady=10)
         
         # 7 段数码管段定义 (a,b,c,d,e,f,g) - 单个数字的段坐标
         self.seg_width: int = 35
@@ -789,6 +900,108 @@ class ClockApp:
             self._refresh_alarm_listbox()
         else:
             messagebox.showwarning("提示", "请先选择一个闹钟")
+    
+    # ==================== 秒表功能 ====================
+    
+    def toggle_stopwatch(self) -> None:
+        """启动/停止秒表"""
+        if self.stopwatch.is_running:
+            # 停止秒表
+            self.stopwatch.is_running = False
+            if self.stopwatch_job:
+                self.root.after_cancel(self.stopwatch_job)
+                self.stopwatch_job = None
+            self.sw_start_btn.config(text="▶️ 继续")
+            print("⏱️ 秒表已停止")
+        else:
+            # 启动秒表
+            self.stopwatch.is_running = True
+            self.stopwatch.start_time = time.time()
+            self.sw_start_btn.config(text="⏸️ 停止")
+            self._update_stopwatch_display()
+            print("⏱️ 秒表已启动")
+    
+    def reset_stopwatch(self) -> None:
+        """重置秒表"""
+        # 如果正在运行，先停止
+        if self.stopwatch.is_running:
+            self.stopwatch.is_running = False
+            if self.stopwatch_job:
+                self.root.after_cancel(self.stopwatch_job)
+                self.stopwatch_job = None
+        
+        # 重置状态
+        self.stopwatch.elapsed_ms = 0
+        self.stopwatch.laps = []
+        self.stopwatch_time_var.set("00:00:00.00")
+        self.sw_start_btn.config(text="▶️ 开始")
+        
+        # 清空计次列表
+        self.lap_listbox.delete(0, tk.END)
+        print("⏱️ 秒表已重置")
+    
+    def record_lap(self) -> None:
+        """记录计次时间"""
+        if not self.stopwatch.is_running and self.stopwatch.elapsed_ms == 0:
+            messagebox.showinfo("提示", "请先启动秒表")
+            return
+        
+        # 更新累计时间
+        if self.stopwatch.is_running:
+            current_time = time.time()
+            delta_ms = int((current_time - self.stopwatch.start_time) * 1000)
+            total_ms = self.stopwatch.elapsed_ms + delta_ms
+            self.stopwatch.start_time = current_time
+            self.stopwatch.elapsed_ms = total_ms
+        
+        total_ms = self.stopwatch.elapsed_ms
+        
+        # 计算单圈时间
+        if self.stopwatch.laps:
+            last_lap_ms = self.stopwatch.laps[-1].time_ms
+            split_ms = total_ms - last_lap_ms
+        else:
+            split_ms = total_ms
+        
+        # 创建计次记录
+        lap_number = len(self.stopwatch.laps) + 1
+        lap = LapRecord(
+            lap_number=lap_number,
+            time_ms=total_ms,
+            split_ms=split_ms
+        )
+        self.stopwatch.laps.append(lap)
+        
+        # 更新显示
+        self._update_stopwatch_display()
+        
+        # 添加到列表 (最新在最上面)
+        lap_text = f"圈{lap_number:2d} | {self._format_time_ms(total_ms)} | {self._format_time_ms(split_ms)}"
+        self.lap_listbox.insert(0, lap_text)
+        
+        print(f"⏱️ 计次 #{lap_number}: {self._format_time_ms(total_ms)}")
+    
+    def _update_stopwatch_display(self) -> None:
+        """更新秒表显示"""
+        if self.stopwatch.is_running:
+            # 计算当前时间
+            current_time = time.time()
+            delta_ms = int((current_time - self.stopwatch.start_time) * 1000)
+            total_ms = self.stopwatch.elapsed_ms + delta_ms
+            self.stopwatch_time_var.set(self._format_time_ms(total_ms))
+            # 继续更新 (每 10ms)
+            self.stopwatch_job = self.root.after(10, self._update_stopwatch_display)
+        else:
+            # 停止状态，显示累计时间
+            self.stopwatch_time_var.set(self._format_time_ms(self.stopwatch.elapsed_ms))
+    
+    def _format_time_ms(self, ms: int) -> str:
+        """格式化时间为 HH:MM:SS.ms 格式"""
+        hours = ms // 3600000
+        minutes = (ms % 3600000) // 60000
+        seconds = (ms % 60000) // 1000
+        milliseconds = ms % 1000
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:02d}"
     
     def draw_clock_face(self) -> None:
         """绘制时钟表盘"""
@@ -1006,19 +1219,202 @@ class ClockApp:
         if mode == "analog":
             self.canvas.pack(pady=10)  # 居中显示
             self.digital_frame.pack_forget()
+            self.stopwatch_frame.pack_forget()
         elif mode == "digital":
             self.canvas.pack_forget()
             self.digital_frame.pack(pady=10)  # 居中显示
+            self.stopwatch_frame.pack_forget()
+        elif mode == "stopwatch":
+            self.canvas.pack_forget()
+            self.digital_frame.pack_forget()
+            self.stopwatch_frame.pack(pady=10)  # 居中显示
+            self.update_stopwatch_display()  # 刷新秒表显示
         
         # 更新配置并保存
         self.config["display_mode"] = mode
         self.save_config()
+    
+    # ========== 秒表功能方法 ==========
+    
+    def format_stopwatch_time(self, elapsed_ms: int) -> str:
+        """
+        格式化秒表时间为显示字符串
+        
+        Args:
+            elapsed_ms: 毫秒数
+        
+        Returns:
+            str: 格式化后的时间字符串 MM:SS.ms
+        """
+        total_seconds = elapsed_ms // 1000
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        milliseconds = (elapsed_ms % 1000) // 10  # 显示 2 位毫秒
+        
+        return f"{minutes:02d}:{seconds:02d}.{milliseconds:02d}"
+    
+    def draw_stopwatch_time(self, elapsed_ms: int) -> None:
+        """
+        在秒表画布上绘制时间显示（7 段数码管风格）
+        
+        Args:
+            elapsed_ms: 毫秒数
+        """
+        self.stopwatch_canvas.delete("all")
+        
+        total_seconds = elapsed_ms // 1000
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        milliseconds = (elapsed_ms % 1000) // 10  # 显示 2 位毫秒
+        
+        # 绘制 MM:SS.ms 格式
+        # 使用简化的文本显示（因为需要更多位数）
+        time_str = f"{minutes:02d}:{seconds:02d}.{milliseconds:02d}"
+        
+        # 在画布中央显示
+        self.stopwatch_canvas.create_text(
+            200, 50, 
+            text=time_str, 
+            font=("Courier", 48, "bold"),
+            fill=self.seg_color_on,
+            anchor=tk.CENTER
+        )
+        
+        # 添加标签
+        self.stopwatch_canvas.create_text(
+            200, 85,
+            text="秒表计时",
+            font=("Arial", 12),
+            fill=self.text_color,
+            anchor=tk.CENTER
+        )
+    
+    def update_stopwatch_display(self) -> None:
+        """更新秒表显示"""
+        if self.stopwatch.is_running:
+            # 计算当前显示时间
+            current_time = time.time()
+            elapsed = int((current_time - self.stopwatch.start_time) * 1000) + self.stopwatch.elapsed_ms
+            self.draw_stopwatch_time(elapsed)
+            # 每 50ms 更新一次（20fps）
+            self.stopwatch_job = self.root.after(50, self.update_stopwatch_display)
+        else:
+            self.draw_stopwatch_time(self.stopwatch.elapsed_ms)
+    
+    def stopwatch_start(self) -> None:
+        """开始秒表计时"""
+        if not self.stopwatch.is_running:
+            self.stopwatch.is_running = True
+            self.stopwatch.start_time = time.time()
+            self.stopwatch_job = self.root.after(50, self.update_stopwatch_display)
+            
+            # 更新按钮状态
+            self.sw_start_btn.config(state=tk.DISABLED)
+            self.sw_stop_btn.config(state=tk.NORMAL)
+            self.sw_lap_btn.config(state=tk.NORMAL)
+            
+            print("⏱️ 秒表已开始计时")
+    
+    def stopwatch_stop(self) -> None:
+        """停止秒表计时"""
+        if self.stopwatch.is_running:
+            # 计算并保存已用时间
+            current_time = time.time()
+            elapsed = int((current_time - self.stopwatch.start_time) * 1000)
+            self.stopwatch.elapsed_ms += elapsed
+            self.stopwatch.is_running = False
+            
+            # 取消定时器
+            if self.stopwatch_job:
+                self.root.after_cancel(self.stopwatch_job)
+                self.stopwatch_job = None
+            
+            # 更新按钮状态
+            self.sw_start_btn.config(state=tk.NORMAL)
+            self.sw_stop_btn.config(state=tk.DISABLED)
+            self.sw_lap_btn.config(state=tk.DISABLED)
+            
+            # 刷新显示
+            self.draw_stopwatch_time(self.stopwatch.elapsed_ms)
+            
+            print("⏱️ 秒表已停止")
+    
+    def stopwatch_reset(self) -> None:
+        """复位秒表（归零并清除计圈记录）"""
+        # 如果正在运行，先停止
+        if self.stopwatch.is_running:
+            self.stopwatch_stop()
+        
+        # 重置状态
+        self.stopwatch.elapsed_ms = 0
+        self.stopwatch.laps = []
+        
+        # 清除计圈列表
+        self.lap_listbox.delete(0, tk.END)
+        
+        # 更新显示
+        self.draw_stopwatch_time(0)
+        
+        # 更新按钮状态
+        self.sw_start_btn.config(state=tk.NORMAL)
+        self.sw_stop_btn.config(state=tk.DISABLED)
+        self.sw_lap_btn.config(state=tk.DISABLED)
+        
+        print("⏱️ 秒表已复位")
+    
+    def stopwatch_lap(self) -> None:
+        """记录当前圈次时间"""
+        if self.stopwatch.is_running:
+            current_time = time.time()
+            total_elapsed = int((current_time - self.stopwatch.start_time) * 1000) + self.stopwatch.elapsed_ms
+            
+            # 计算单圈时间
+            if self.stopwatch.laps:
+                last_lap_time = self.stopwatch.laps[-1].time_ms
+                split_ms = total_elapsed - last_lap_time
+            else:
+                split_ms = total_elapsed
+            
+            # 创建计圈记录
+            lap_number = len(self.stopwatch.laps) + 1
+            lap_record = LapRecord(
+                lap_number=lap_number,
+                time_ms=total_elapsed,
+                split_ms=split_ms
+            )
+            self.stopwatch.laps.append(lap_record)
+            
+            # 添加到列表框（显示在顶部）
+            lap_str = f"圈{lap_number:2d}: {self.format_stopwatch_time(total_elapsed)} (单圈：{self.format_stopwatch_time(split_ms)})"
+            self.lap_listbox.insert(0, lap_str)
+            
+            # 自动滚动到顶部
+            self.lap_listbox.yview_moveto(0.0)
+            
+            print(f"⏱️ 计圈 #{lap_number}: {self.format_stopwatch_time(total_elapsed)}")
+    
+    def save_stopwatch_config(self) -> None:
+        """保存秒表配置到 config.json"""
+        # 秒表配置通常不需要持久化（因为计时状态是临时的）
+        # 但可以保存一些设置，如计圈记录（如果需要）
+        pass
+    
+    def load_stopwatch_config(self) -> None:
+        """从 config.json 加载秒表配置"""
+        # 秒表状态在应用重启后重置
+        self.stopwatch = StopwatchState()
+    
+    # ========== 窗口关闭方法 ==========
     
     def on_close(self) -> None:
         """
         窗口关闭事件处理
         保存当前窗口位置、大小和可调整状态
         """
+        # 停止秒表定时器（如果正在运行）
+        if self.stopwatch.is_running:
+            self.stopwatch_stop()
+        
         # 获取当前窗口几何信息
         geometry: str = self.root.geometry()
         # geometry 格式："WIDTHxHEIGHT+X+Y"
