@@ -1,5 +1,9 @@
 {
   "display_mode": "analog",
+  "stopwatch": {
+    "auto_save_laps": false,
+    "show_milliseconds": true
+  },
   "theme": {
     "colors": {
       "accent": "#0f3460",

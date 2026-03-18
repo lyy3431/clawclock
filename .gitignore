@@ -41,9 +41,11 @@ Thumbs.db
 *.bak
 *.log
 screenshots/
-test_*.py
-!test_*.py.example
 *.tmp
+
+# Test files (only ignore root level, allow tests/ directory)
+test_*.py
+!tests/test_*.py
 
 # Configuration (optional)
 # config.json
