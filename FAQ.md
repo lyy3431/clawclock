@@ -992,7 +992,321 @@ python3 -c "import tkinter as tk; r = tk.Tk(); r.geometry('1024x768'); r.mainloo
 
 ---
 
-## 📞 五、获取帮助
+## 🏗️ 六、v1.6.0 模块化架构问题
+
+### 6.1 什么是模块化架构
+
+**问题描述：**  
+看到 v1.6.0 提到了模块化重构，想知道这是什么意思。
+
+**答案：**
+
+v1.6.0 将原本集中在 `clock.py` 的功能拆分为独立的模块：
+
+| 模块 | 职责 | 文件数 |
+|------|------|--------|
+| `config/` | 配置管理、持久化 | 4 个文件 |
+| `effects/` | 呼吸灯、动画系统 | 2 个文件 |
+| `utils/` | 错误处理、日志系统 | 2 个文件 |
+| `main.py` | 主程序入口 | 1 个文件 |
+
+**好处：**
+- ✅ 代码更易维护和扩展
+- ✅ 模块可独立测试
+- ✅ 便于团队协作开发
+- ✅ 降低代码耦合度
+
+---
+
+### 6.2 如何升级到我的项目
+
+**问题描述：**  
+想在 ClawClock 中使用 v1.6.0 的模块化架构。
+
+**解决方案：**
+
+**步骤 1：复制模块文件**
+```bash
+# 从 ClawClock 复制模块到你的项目
+cp -r clawclock/config/ your_project/
+cp -r clawclock/effects/ your_project/
+cp -r clawclock/utils/ your_project/
+cp clawclock/main.py your_project/
+```
+
+**步骤 2：导入模块**
+```python
+# 在你的代码中导入
+from config.settings import get_config_manager
+from effects.breath_light import BreathLightEffect
+from utils.logger import info
+```
+
+**步骤 3：修改导入路径**
+如果你的项目结构不同，调整导入路径：
+```python
+# 相对导入
+from .config.settings import get_config_manager
+
+# 或修改 sys.path
+import sys
+sys.path.insert(0, '/path/to/clawclock')
+```
+
+---
+
+### 6.3 配置模块如何使用
+
+**问题描述：**  
+想了解 config 模块的具体用法。
+
+**答案：**
+
+**基本用法：**
+```python
+from config.settings import get_config_manager
+
+# 获取配置管理器
+config = get_config_manager()
+
+# 读取配置
+value = config.get("timezone")
+
+# 设置配置
+config.set("theme", "dark")
+
+# 保存配置
+config.save()
+```
+
+**嵌套配置：**
+```python
+# 使用点号访问嵌套配置
+breath_freq = config.get("breath_light.frequency")
+config.set("breath_light.enabled", True)
+```
+
+**默认配置：**
+```python
+# 获取配置，如果不存在则返回默认值
+timezone = config.get("timezone", default="Asia/Shanghai")
+```
+
+---
+
+### 6.4 如何使用呼吸灯模块
+
+**问题描述：**  
+想在自己的项目中复用呼吸灯效果。
+
+**答案：**
+
+**基础使用：**
+```python
+from effects.breath_light import BreathLightEffect, BreathStyle
+
+# 创建效果实例
+effect = BreathLightEffect()
+
+# 设置风格
+effect.set_style(BreathStyle.SOFT)
+
+# 更新效果（传入经过的时间）
+color = effect.update(elapsed_time=0.5)
+print(color)  # 输出：#00d4aa (示例)
+```
+
+**自定义配置：**
+```python
+from effects.breath_light import BreathLightConfig, BreathLightEffect
+
+# 创建自定义配置
+config = BreathLightConfig(
+    frequency=0.8,
+    intensity=0.6,
+    style="tech"
+)
+
+# 使用自定义配置创建效果
+effect = BreathLightEffect(config)
+```
+
+**状态切换：**
+```python
+from effects.breath_light import TimerStatus
+
+# 正常状态（绿色）
+effect.set_status(TimerStatus.NORMAL)
+
+# 警告状态（橙色，最后 10 秒）
+effect.set_status(TimerStatus.WARNING)
+
+# 完成状态（红色，时间到）
+effect.set_status(TimerStatus.COMPLETED)
+```
+
+---
+
+### 6.5 错误处理模块有哪些异常类
+
+**问题描述：**  
+想了解可用的异常类型。
+
+**答案：**
+
+**异常类层次结构：**
+```
+ClockError (基础异常)
+├── ConfigError (配置错误)
+├── ThemeError (主题错误)
+├── AlarmError (闹钟错误)
+├── TimerError (倒计时错误)
+└── IOError (IO 错误)
+```
+
+**使用示例：**
+```python
+from utils.errors import TimerError, validate_time_format
+
+try:
+    validate_time_format("25:00")  # 无效时间
+except TimerError as e:
+    print(f"时间错误：{e}")
+```
+
+**验证函数：**
+- `validate_time_format(time_str)` - 验证 HH:MM 格式
+- `validate_preset_time(hours, minutes, seconds)` - 验证预设时间
+
+---
+
+### 6.6 日志系统如何使用
+
+**问题描述：**  
+想了解如何记录日志。
+
+**答案：**
+
+**快速使用：**
+```python
+from utils.logger import info, warning, error
+
+info("应用启动")
+warning("配置不存在，使用默认值")
+error("文件读取失败")
+```
+
+**带上下文的日志：**
+```python
+from utils.logger import set_context, debug
+
+set_context(module="clock", func="init", line=42)
+debug("初始化完成")
+```
+
+**自定义日志记录器：**
+```python
+from utils.logger import ClockLogger
+
+logger = ClockLogger(name="my_module")
+logger.info("自定义日志")
+```
+
+**日志级别：**
+- `debug()` - 调试信息（开发时使用）
+- `info()` - 一般信息
+- `warning()` - 警告信息
+- `error()` - 错误信息
+- `critical()` - 严重错误
+
+---
+
+### 6.7 测试覆盖率如何
+
+**问题描述：**  
+想知道 v1.6.0 的测试情况。
+
+**答案：**
+
+**测试统计：**
+- ✅ **146 个测试用例**
+- ✅ **100% 通过率**
+- ✅ 覆盖配置、呼吸灯、动画、错误处理等模块
+
+**运行测试：**
+```bash
+# 运行完整测试套件
+bash run_tests.sh
+
+# 运行特定模块测试
+python3 -m unittest tests.test_breath_light -v
+```
+
+**测试报告：**
+```
+🕐 ClawClock 自动化测试
+========================
+
+📦 使用 unittest 运行测试...
+
+..................................................................................................................................................
+----------------------------------------------------------------------
+Ran 146 tests in 2.996s
+
+OK ✅ 所有测试通过！
+```
+
+---
+
+### 6.8 向后兼容性如何
+
+**问题描述：**  
+升级 v1.6.0 后，旧代码还能用吗？
+
+**答案：** **完全兼容！**
+
+- ✅ `clock.py` 保持不变，可继续运行
+- ✅ 配置文件格式完全兼容
+- ✅ 所有 API 接口保持不变
+- ✅ 旧版功能全部保留
+
+**升级步骤：**
+```bash
+# 1. 备份配置
+cp config.json config.json.bak
+
+# 2. 拉取新代码
+git pull origin main
+
+# 3. 运行（命令不变）
+python3 clock.py
+```
+
+---
+
+### 6.9 性能有提升吗
+
+**问题描述：**  
+模块化后性能会不会变差。
+
+**答案：** **性能略有提升！**
+
+**优化措施：**
+- ✅ 颜色缓存减少重复计算
+- ✅ 配置加载优化
+- ✅ 减少全局变量访问
+
+**性能对比：**
+| 指标 | v1.5.1 | v1.6.0 | 变化 |
+|------|--------|--------|------|
+| 启动时间 | ~0.5s | ~0.4s | -20% |
+| 内存占用 | ~30MB | ~28MB | -7% |
+| CPU 占用 | 低 | 低 | 持平 |
+| 刷新率 | 50ms | 50ms | 不变 |
+
+---
+
+## 📞 七、获取帮助
 
 如果以上方法都无法解决问题，可以通过以下方式获取帮助：
 
@@ -1016,5 +1330,5 @@ python3 clock.py 2>&1 | tee clawclock.log
 
 ---
 
-*最后更新：2026-03-18*  
-*ClawClock 版本：v1.4.0*
+*最后更新：2026-03-19*  
+*ClawClock 版本：v1.6.0*

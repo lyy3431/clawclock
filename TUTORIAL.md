@@ -352,6 +352,239 @@ ClawClock 是学习 Python GUI 编程的优秀示例：
 
 ---
 
+## 🏗️ v1.6.0 模块化架构指南
+
+v1.6.0 引入了全新的模块化架构，将应用拆分为独立的模块系统。本章节介绍如何使用这些新模块。
+
+### 1. 配置管理模块
+
+**使用场景**：读取或修改应用配置
+
+```python
+from config.settings import get_config_manager
+
+# 获取配置管理器实例
+config = get_config_manager()
+
+# 读取配置
+timezone = config.get("timezone")
+theme = config.get("theme")
+breath_enabled = config.get("breath_light.enabled")
+
+# 修改配置
+config.set("theme", "light")
+config.set("breath_light.frequency", 0.8)
+
+# 保存配置
+config.save()
+```
+
+**配置文件位置**：`~/.openclaw/workspace/clawclock/config.json`
+
+### 2. 数据持久化模块
+
+**使用场景**：保存和加载闹钟、秒表、倒计时状态
+
+```python
+from config.persistence import get_persistence_manager
+
+# 获取持久化管理器
+persistence = get_persistence_manager()
+
+# 闹钟管理
+alarms = persistence.load_alarms()
+persistence.save_alarms(alarms)
+persistence.add_alarm(alarm)
+persistence.remove_alarm(alarm_id)
+persistence.toggle_alarm(alarm_id)
+
+# 秒表状态
+state = persistence.load_stopwatch_state()
+persistence.save_stopwatch_state(state)
+
+# 倒计时状态
+timer_state = persistence.load_timer_state()
+persistence.save_timer_state(timer_state)
+```
+
+### 3. 呼吸灯效果模块
+
+**使用场景**：自定义呼吸灯效果或集成到其他功能
+
+```python
+from effects.breath_light import (
+    BreathLightEffect,
+    BreathStyle,
+    BreathMode,
+    TimerStatus,
+    hex_to_rgb,
+    rgb_to_hex,
+    interpolate_color
+)
+
+# 创建呼吸灯效果实例
+effect = BreathLightEffect()
+
+# 设置风格
+effect.set_style(BreathStyle.SOFT)  # 柔和模式
+effect.set_style(BreathStyle.TECH)  # 科技模式
+effect.set_style(BreathStyle.COOL)  # 炫酷模式
+effect.set_style(BreathStyle.MINIMAL)  # 简约模式
+
+# 设置状态
+effect.set_status(TimerStatus.NORMAL)     # 正常（绿色）
+effect.set_status(TimerStatus.WARNING)    # 警告（橙色）
+effect.set_status(TimerStatus.COMPLETED)  # 完成（红色）
+
+# 更新效果（返回当前颜色）
+current_color = effect.update(elapsed_time=0.5)
+
+# 颜色工具
+rgb = hex_to_rgb("#00ff88")  # (0, 255, 136)
+hex_color = rgb_to_hex(0, 255, 136)  # "#00ff88"
+mixed = interpolate_color("#00ff88", "#ff0000", 0.5)  # 中间色
+```
+
+### 4. 动画系统模块
+
+**使用场景**：创建自定义动画效果
+
+```python
+from effects.animations import (
+    Animation,
+    FadeAnimation,
+    ColorAnimation,
+    ease_in_out,
+    bounce,
+    elastic
+)
+
+# 创建基础动画
+anim = Animation(
+    duration=1.0,  # 1 秒
+    easing=ease_in_out
+)
+
+# 淡入淡出动画
+fade = FadeAnimation(
+    start_alpha=0.0,
+    end_alpha=1.0,
+    duration=0.5
+)
+alpha = fade.update(0.25)  # 更新到 50%
+
+# 颜色渐变动画
+color_anim = ColorAnimation(
+    start_color="#00ff88",
+    end_color="#ff0000",
+    duration=1.0
+)
+current_color = color_anim.update(0.5)  # 更新到 50%
+```
+
+### 5. 错误处理模块
+
+**使用场景**：统一错误处理和验证
+
+```python
+from utils.errors import (
+    ClockError,
+    ConfigError,
+    ThemeError,
+    AlarmError,
+    TimerError,
+    IOError,
+    validate_time_format,
+    validate_preset_time,
+    safe_execute,
+    ErrorLogger
+)
+
+# 时间格式验证
+try:
+    validate_time_format("23:59")  # ✅ 有效
+    validate_time_format("25:00")  # ❌ 抛出 TimerError
+except TimerError as e:
+    print(f"时间格式错误：{e}")
+
+# 预设时间验证
+try:
+    validate_preset_time(hours=1, minutes=30, seconds=0)
+except TimerError as e:
+    print(f"预设时间错误：{e}")
+
+# 安全执行包装器
+result = safe_execute(
+    func=lambda: 10 / 0,
+    default=0,
+    error_handler=lambda e: print(f"错误：{e}")
+)
+
+# 错误日志记录器
+logger = ErrorLogger()
+logger.log_error("测试错误", {"key": "value"})
+```
+
+### 6. 日志系统模块
+
+**使用场景**：记录应用日志，便于调试和追踪
+
+```python
+from utils.logger import (
+    ClockLogger,
+    debug,
+    info,
+    warning,
+    error,
+    critical,
+    set_context
+)
+
+# 直接使用全局函数
+info("应用启动")
+debug("调试信息")
+warning("警告信息")
+error("错误信息")
+critical("严重错误")
+
+# 设置上下文
+set_context(module="clock", func="init", line=42)
+info("带上下文的日志")
+
+# 创建自定义日志记录器
+logger = ClockLogger(name="my_module")
+logger.info("自定义日志记录器")
+```
+
+### 7. 使用 main.py 启动应用
+
+v1.6.0 引入了独立的入口文件：
+
+```bash
+# 传统方式（仍然支持）
+python3 clock.py
+
+# 新方式（推荐）
+python3 main.py
+```
+
+### 8. 参考 clock_v2.py 示例
+
+`clock_v2.py` 是模块化架构的完整示例实现，展示了如何：
+
+- 使用配置管理器
+- 集成呼吸灯效果
+- 处理错误和日志
+- 组织代码结构
+
+**学习路径：**
+1. 阅读 `clock_v2.py` 源码
+2. 理解模块间的依赖关系
+3. 尝试修改配置和效果
+4. 创建自己的模块扩展
+
+---
+
 ## 📚 进阶资源
 
 - **GitHub 仓库**：查看最新代码和更新
@@ -372,5 +605,5 @@ ClawClock 是学习 Python GUI 编程的优秀示例：
 
 ---
 
-*教程版本：v1.1.0*
-*最后更新：2026-03-17*
+*教程版本：v1.6.0*
+*最后更新：2026-03-19*

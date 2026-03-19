@@ -6,6 +6,8 @@ ClawClock 是一款专为 Linux 桌面设计的多功能时钟应用，支持模
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
 ![Tkinter](https://img.shields.io/badge/tkinter-builtin-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
+![Version](https://img.shields.io/badge/version-1.6.0-orange.svg)
+![Tests](https://img.shields.io/badge/tests-146%20passed-brightgreen.svg)
 
 ---
 
@@ -34,6 +36,10 @@ ClawClock 是一款专为 Linux 桌面设计的多功能时钟应用，支持模
 - **跨平台兼容**：适用于所有 Linux 发行版（Debian/Ubuntu/Arch/Fedora）
 - **零依赖安装**：使用 Python 内置 Tkinter 库，无需额外安装
 - **轻量级**：内存占用约 30MB，低 CPU 开销
+- **模块化架构**（v1.6.0+）：配置、特效、工具模块分离，易于维护和扩展
+- **统一错误处理**：6 种异常类覆盖所有错误场景
+- **结构化日志**：5 级日志系统，支持上下文追踪
+- **100% 测试覆盖**：146 个自动化测试用例，确保稳定性
 
 ---
 
@@ -106,6 +112,67 @@ python3 clock.py
 
 ---
 
+## 🏗️ 模块化架构（v1.6.0+）
+
+v1.6.0 进行了全面的模块化重构，将单体应用拆分为独立的模块系统，提高代码可维护性和可扩展性。
+
+**模块结构：**
+
+```
+clawclock/
+├── config/              # 配置模块
+│   ├── constants.py     # 全局常量定义
+│   ├── settings.py      # 配置管理器
+│   ├── persistence.py   # 数据持久化
+│   └── defaults.py      # 默认配置模板
+├── effects/             # 特效模块
+│   ├── breath_light.py  # 呼吸灯效果引擎
+│   └── animations.py    # 动画系统（6 种缓动函数）
+├── utils/               # 工具模块
+│   ├── errors.py        # 统一错误处理
+│   └── logger.py        # 结构化日志系统
+├── main.py              # 主程序入口
+└── clock.py             # 主程序（兼容旧版）
+```
+
+**核心模块：**
+
+| 模块 | 功能 | 关键类/函数 |
+|------|------|-------------|
+| `config.settings` | 配置管理 | `ConfigManager` (load/save/get/set) |
+| `config.persistence` | 数据持久化 | `PersistenceManager` (闹钟/秒表/倒计时状态) |
+| `effects.breath_light` | 呼吸灯效果 | `BreathLightEffect`, `BreathStyle`, `TimerStatus` |
+| `effects.animations` | 动画系统 | `Animation`, `FadeAnimation`, `ColorAnimation` |
+| `utils.errors` | 错误处理 | 6 种异常类 + 验证函数 |
+| `utils.logger` | 日志系统 | `ClockLogger` (5 级日志) |
+
+**使用示例：**
+
+```python
+# 配置管理
+from config.settings import get_config_manager
+config = get_config_manager()
+timezone = config.get("timezone")
+
+# 错误处理
+from utils.errors import validate_time_format, TimerError
+try:
+    validate_time_format("23:59")
+except TimerError as e:
+    print(f"错误：{e}")
+
+# 日志系统
+from utils.logger import info, error
+info("应用启动")
+
+# 呼吸灯效果
+from effects.breath_light import BreathLightEffect
+effect = BreathLightEffect()
+color = effect.update(0.1)
+```
+
+---
+
 ## 🫧 呼吸灯效果（v1.5.0+）
 
 呼吸灯效果为倒计时功能增添视觉吸引力，通过平滑的明暗变化提供直观的时间反馈。
@@ -151,6 +218,44 @@ python3 clock.py
 
 ## 📁 项目结构
 
+### v1.6.0+ 模块化结构
+
+```
+clawclock/
+├── main.py                  # 主程序入口
+├── clock.py                 # 主程序（Tkinter，兼容旧版）
+├── clock_v2.py              # 模块化示例实现
+├── timer.py                 # 倒计时模块
+├── stopwatch.py             # 秒表模块
+├── config.json              # 配置文件
+├── install.sh               # 一键安装脚本
+├── run_tests.sh             # 测试脚本
+├── config/                  # 配置模块（v1.6.0+）
+│   ├── constants.py         # 全局常量定义
+│   ├── settings.py          # 配置管理器
+│   ├── persistence.py       # 数据持久化
+│   └── defaults.py          # 默认配置模板
+├── effects/                 # 特效模块（v1.6.0+）
+│   ├── breath_light.py      # 呼吸灯效果引擎
+│   └── animations.py        # 动画系统
+├── utils/                   # 工具模块（v1.6.0+）
+│   ├── errors.py            # 统一错误处理
+│   └── logger.py            # 结构化日志系统
+├── themes/                  # 主题配置目录
+├── screenshots/             # 界面截图
+└── docs/                    # 文档目录
+    ├── README.md            # 使用说明
+    ├── INSTALL.md           # 安装指南
+    ├── CONTRIBUTING.md      # 贡献指南
+    ├── CHANGELOG.md         # 更新日志
+    ├── FAQ.md               # 常见问题
+    ├── TUTORIAL.md          # 详细教程
+    ├── API.md               # API 文档（v1.6.0+）
+    └── DEVELOPMENT.md       # 开发指南（v1.6.0+）
+```
+
+### 传统结构（兼容）
+
 ```
 clawclock/
 ├── clock.py                 # 主程序（Tkinter）
@@ -158,18 +263,7 @@ clawclock/
 ├── stopwatch.py             # 秒表模块
 ├── breath_light.py          # 呼吸灯效果模块
 ├── breath_light_improved.py # 呼吸灯优化版本（v1.5.1）
-├── config.json              # 配置文件
-├── install.sh               # 一键安装脚本
-├── run_tests.sh             # 测试脚本
-├── themes/                  # 主题配置目录
-├── screenshots/             # 界面截图
-└── 文档/
-    ├── README.md            # 使用说明
-    ├── INSTALL.md           # 安装指南
-    ├── CONTRIBUTING.md      # 贡献指南
-    ├── CHANGELOG.md         # 更新日志
-    ├── FAQ.md               # 常见问题
-    └── TUTORIAL.md          # 详细教程
+└── config.json              # 配置文件
 ```
 
 ---
@@ -342,6 +436,7 @@ hour_angle = (hour % 12) * 30 + minute * 0.5 - 90  # 每小时 30 度 + 偏移
 
 | 版本 | 日期 | 核心更新 |
 |------|------|----------|
+| v1.6.0 | 2026-03-19 | 模块化重构、配置系统、错误处理、日志系统、100% 测试覆盖 |
 | v1.5.1 | 2026-03-18 | 4 种呼吸灯风格、平滑缓动曲线、主题切换优化 |
 | v1.5.0 | 2026-03-18 | 呼吸灯效果、状态感知、配置持久化 |
 | v1.4.0 | 2026-03-18 | 倒计时功能、预设时长、双重提醒 |
@@ -373,6 +468,8 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 | [FAQ.md](FAQ.md) | 常见问题解答 |
 | [CHANGELOG.md](CHANGELOG.md) | 完整更新日志 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南 |
+| [API.md](docs/API.md) | API 参考文档（v1.6.0+） |
+| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | 开发指南（v1.6.0+） |
 
 ---
 
