@@ -852,11 +852,13 @@ class ClockApp:
                       command=self.toggle_timer_sound).pack(side=tk.LEFT, padx=10)
         
         # 7 段数码管段定义 (a,b,c,d,e,f,g) - 单个数字的段坐标
-        self.seg_width: int = 35
-        self.seg_height: int = 60
-        self.seg_thickness: int = 12
-        self.digit_spacing: int = 10
-        self.colon_space: int = 25
+        # 优化长宽比，让数码管更接近日常看到的样子
+        # 经典数码管比例：宽:高 ≈ 2:3，段宽约为主宽度的1/3
+        self.seg_width: int = 40       # 段宽度（适中）
+        self.seg_height: int = 65      # 段高度（保证纵向比例）
+        self.seg_thickness: int = 10   # 段粗细（适中，不要太粗也不要太细）
+        self.digit_spacing: int = 8    # 数字间距（紧凑些）
+        self.colon_space: int = 20     # 冒号区空间（稍小）
         
         # Draw clock face
         self.draw_clock_face()
@@ -1210,10 +1212,10 @@ class ClockApp:
         segs: List[int] = digit_segs.get(digit, [0, 0, 0, 0, 0, 0, 0])
         
         # 段坐标定义（相对于数字左上角）
-        w: int = self.seg_width
-        h: int = self.seg_height
-        t: int = self.seg_thickness
-        margin: int = 3  # 数字边缘留白
+        w: int = self.seg_width      # 40px 宽度
+        h: int = self.seg_height     # 65px 高度
+        t: int = self.seg_thickness  # 10px 粗细
+        margin: int = 5              # 数字边缘留白（加大一点让段更饱满）
         
         # a: 上横
         self.draw_segment(x_offset + margin + t, margin, x_offset + w - margin - t, margin, segs[0])
@@ -1252,9 +1254,9 @@ class ClockApp:
                           int(parts[2][0]), int(parts[2][1])]  # 秒
             
             # 计算每位数字的 x 偏移量
-            w: int = self.seg_width      # 数字宽度 (35px)
-            s: int = self.digit_spacing  # 数字间距 (10px)
-            c: int = self.colon_space    # 冒号区空间 (25px)
+            w: int = self.seg_width      # 数字宽度 (40px)
+            s: int = self.digit_spacing  # 数字间距 (8px)
+            c: int = self.colon_space    # 冒号区空间 (20px)
             margin: int = 15             # 左右边距
             
             # 逐步计算每个位置的起始 x 坐标
