@@ -37,21 +37,40 @@ import os
 import sys
 import json
 import threading
+import subprocess
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 
 
 @dataclass
 class Alarm:
-    """闹钟数据类"""
+    """闹钟数据类
+    
+    Attributes:
+        time: 闹钟时间 (HH:MM 格式)
+        enabled: 是否启用
+        label: 闹钟标签
+        sound: 铃声类型
+        repeat_days: 重复日期列表 (0=Monday, 6=Sunday)
+        snooze_minutes: 小睡时长 (分钟)
+    """
     time: str  # HH:MM 格式
     enabled: bool = True
     label: str = ""
     sound: str = "default"
     repeat_days: List[int] = field(default_factory=list)  # 0=Monday, 6=Sunday
+    snooze_minutes: int = 5  # 小睡时长
     
     def is_due(self, current_time: datetime.datetime) -> bool:
-        """检查当前时间是否触发闹钟"""
+        """
+        检查当前时间是否触发闹钟
+        
+        Args:
+            current_time: 当前时间
+            
+        Returns:
+            bool: 是否触发闹钟
+        """
         if not self.enabled:
             return False
         
@@ -347,7 +366,8 @@ class ClockApp:
                 enabled=alarm_data.get("enabled", True),
                 label=alarm_data.get("label", ""),
                 sound=alarm_data.get("sound", "default"),
-                repeat_days=alarm_data.get("repeat_days", [])
+                repeat_days=alarm_data.get("repeat_days", []),
+                snooze_minutes=alarm_data.get("snooze_minutes", 5)
             )
             self.alarms.append(alarm)
     
@@ -359,7 +379,8 @@ class ClockApp:
                 "enabled": alarm.enabled,
                 "label": alarm.label,
                 "sound": alarm.sound,
-                "repeat_days": alarm.repeat_days
+                "repeat_days": alarm.repeat_days,
+                "snooze_minutes": alarm.snooze_minutes
             }
             for alarm in self.alarms
         ]
@@ -384,7 +405,12 @@ class ClockApp:
         thread.start()
     
     def _trigger_alarm(self, alarm: Alarm) -> None:
-        """触发闹钟"""
+        """
+        触发闹钟（渐入铃声）
+        
+        Args:
+            alarm: 触发的闹钟对象
+        """
         label_text = f"闹钟时间到！\n\n{alarm.time}"
         if alarm.label:
             label_text += f"\n{alarm.label}"
@@ -411,36 +437,62 @@ class ClockApp:
         btn_frame.pack(pady=10)
         
         tk.Button(btn_frame, text="停止闹钟", command=stop_alarm, width=10).pack(side=tk.LEFT, padx=10)
-        tk.Button(btn_frame, text="稍后提醒", command=lambda: self._snooze_alarm(dialog), width=10).pack(side=tk.LEFT, padx=10)
+        tk.Button(btn_frame, text="稍后提醒", command=lambda: self._snooze_alarm(dialog, alarm), width=10).pack(side=tk.LEFT, padx=10)
         
-        # 播放提示音（系统蜂鸣）
-        try:
-            self.root.bell()
-        except Exception:
-            pass
+        # 渐入铃声：蜂鸣 3 次，每次间隔 1 秒
+        for i in range(3):
+            try:
+                self.root.bell()
+            except Exception:
+                pass
+            if i < 2:
+                time.sleep(1)
+        
+        # 发送系统通知
+        self.send_notification("⏰ 闹钟提醒", f"{alarm.time} - {alarm.label}" if alarm.label else alarm.time)
     
-    def _snooze_alarm(self, dialog: tk.Toplevel) -> None:
-        """稍后提醒（5 分钟后）"""
+    def _snooze_alarm(self, dialog: tk.Toplevel, alarm: Alarm) -> None:
+        """
+        稍后提醒（小睡功能）
+        
+        Args:
+            dialog: 闹钟对话框
+            alarm: 当前闹钟对象
+        """
         self.alarm_triggered = False
         dialog.destroy()
         
-        # 5 分钟后重新触发
+        # 使用闹钟的 snooze_minutes 设置
         def snooze_callback():
-            for alarm in self.alarms:
-                if alarm.enabled:
-                    self.alarm_triggered = True
-                    self.root.after(0, self._trigger_alarm, alarm)
-                    break
+            self.alarm_triggered = True
+            self.root.after(0, self._trigger_alarm, alarm)
         
-        self.root.after(300000, snooze_callback)  # 300000ms = 5 分钟
+        snooze_ms = alarm.snooze_minutes * 60 * 1000
+        self.root.after(snooze_ms, snooze_callback)
     
-    def add_alarm(self, time_str: str, label: str = "") -> bool:
+    def send_notification(self, title: str, message: str) -> None:
+        """
+        发送系统通知（Linux notify-send）
+        
+        Args:
+            title: 通知标题
+            message: 通知内容
+        """
+        try:
+            subprocess.run(['notify-send', title, message], timeout=2, capture_output=True)
+        except Exception:
+            # 降级处理：不显示通知
+            pass
+    
+    def add_alarm(self, time_str: str, label: str = "", repeat_days: Optional[List[int]] = None, snooze_minutes: int = 5) -> bool:
         """
         添加新闹钟
         
         Args:
             time_str: 时间字符串 (HH:MM)
             label: 闹钟标签
+            repeat_days: 重复日期列表 (0=Monday, 6=Sunday)
+            snooze_minutes: 小睡时长 (分钟)
         
         Returns:
             bool: 是否添加成功
@@ -454,7 +506,7 @@ class ClockApp:
             print(f"⚠️  无效的时间格式：{e}")
             return False
         
-        alarm = Alarm(time=time_str, label=label)
+        alarm = Alarm(time=time_str, label=label, repeat_days=repeat_days or [], snooze_minutes=snooze_minutes)
         self.alarms.append(alarm)
         self._save_alarms()
         print(f"✅ 闹钟已添加：{time_str} {label}")
@@ -834,6 +886,29 @@ class ClockApp:
             btn.pack(side=tk.LEFT, padx=5)
             self.timer_preset_buttons.append(btn)
         
+        # 自定义时间输入框架
+        custom_frame = tk.Frame(self.timer_frame, bg=self.bg_color)
+        custom_frame.pack(pady=10)
+        
+        tk.Label(custom_frame, text="自定义:", bg=self.bg_color, fg=self.text_color).pack(side=tk.LEFT)
+        
+        self.timer_hour_entry = tk.Entry(custom_frame, width=4, justify='center')
+        self.timer_hour_entry.insert(0, "00")
+        self.timer_hour_entry.pack(side=tk.LEFT, padx=2)
+        tk.Label(custom_frame, text=":", bg=self.bg_color, fg=self.text_color).pack(side=tk.LEFT)
+        
+        self.timer_min_entry = tk.Entry(custom_frame, width=4, justify='center')
+        self.timer_min_entry.insert(0, "00")
+        self.timer_min_entry.pack(side=tk.LEFT, padx=2)
+        tk.Label(custom_frame, text=":", bg=self.bg_color, fg=self.text_color).pack(side=tk.LEFT)
+        
+        self.timer_sec_entry = tk.Entry(custom_frame, width=4, justify='center')
+        self.timer_sec_entry.insert(0, "00")
+        self.timer_sec_entry.pack(side=tk.LEFT, padx=2)
+        
+        tk.Button(custom_frame, text="设置", command=self.set_timer_custom, bg=self.accent_color, 
+                  fg=self.text_color).pack(side=tk.LEFT, padx=5)
+        
         # 倒计时控制按钮
         timer_btn_frame: tk.Frame = tk.Frame(self.timer_frame, bg=self.bg_color)
         timer_btn_frame.pack(pady=15)
@@ -862,6 +937,18 @@ class ClockApp:
         
         # Draw clock face
         self.draw_clock_face()
+        
+        # 绑定键盘快捷键
+        self.root.bind('<space>', self.on_space_key)
+        self.root.bind('<r>', lambda e: self.on_reset_key())
+        self.root.bind('<R>', lambda e: self.on_reset_key())
+        self.root.bind('<f>', lambda e: self.toggle_fullscreen())
+        self.root.bind('<F>', lambda e: self.toggle_fullscreen())
+        self.root.bind('<t>', lambda e: self.toggle_topmost())
+        self.root.bind('<T>', lambda e: self.toggle_topmost())
+        self.root.bind('<1>', lambda e: self.mode_var.set('analog') or self.update_mode())
+        self.root.bind('<2>', lambda e: self.mode_var.set('digital') or self.update_mode())
+        self.root.bind('<3>', lambda e: self.mode_var.set('stopwatch') or self.update_mode())
     
     def _update_button_states(self) -> None:
         """更新按钮状态显示"""
@@ -870,6 +957,27 @@ class ClockApp:
         
         self.fullscreen_btn.config(text="❐ 退出全屏" if is_fullscreen else "🔲 全屏")
         self.topmost_btn.config(text="📍 取消置顶" if is_topmost else "📌 置顶")
+    
+    def on_space_key(self, event: tk.Event) -> None:
+        """
+        空格键处理 - 启动/停止当前模式
+        
+        Args:
+            event: Tkinter 事件对象
+        """
+        mode = self.mode_var.get()
+        if mode == 'stopwatch':
+            self.toggle_stopwatch()
+        elif mode == 'timer':
+            self.toggle_timer()
+    
+    def on_reset_key(self) -> None:
+        """重置当前模式"""
+        mode = self.mode_var.get()
+        if mode == 'stopwatch':
+            self.reset_stopwatch()
+        elif mode == 'timer':
+            self.reset_timer()
     
     def toggle_fullscreen(self) -> None:
         """切换全屏模式"""
@@ -934,33 +1042,81 @@ class ClockApp:
     def _refresh_alarm_listbox(self) -> None:
         """刷新闹钟列表框"""
         self.alarm_listbox.delete(0, tk.END)
+        day_labels = ["一", "二", "三", "四", "五", "六", "日"]
         for i, alarm in enumerate(self.alarms):
             status = "✓" if alarm.enabled else "✗"
             label = f"{status} {alarm.time}"
             if alarm.label:
                 label += f" - {alarm.label}"
+            # 显示重复周期
+            if alarm.repeat_days:
+                days_str = "".join(day_labels[d] for d in sorted(alarm.repeat_days))
+                label += f" [{days_str}]"
+            else:
+                label += " [仅一次]"
             self.alarm_listbox.insert(tk.END, label)
     
     def _add_alarm_from_dialog(self, dialog: tk.Toplevel) -> None:
-        """从对话框添加闹钟"""
+        """从对话框添加闹钟（带重复周期选择）"""
         add_dialog = tk.Toplevel(dialog)
         add_dialog.title("添加闹钟")
-        add_dialog.geometry("250x150")
+        add_dialog.geometry("350x280")
         add_dialog.attributes("-topmost", True)
         
+        # 时间输入
         tk.Label(add_dialog, text="时间 (HH:MM):").pack(pady=5)
         time_entry = tk.Entry(add_dialog)
         time_entry.pack(pady=5)
         time_entry.insert(0, "07:00")
         
+        # 标签输入
         tk.Label(add_dialog, text="标签 (可选):").pack(pady=5)
         label_entry = tk.Entry(add_dialog)
         label_entry.pack(pady=5)
         
+        # 重复周期选择
+        tk.Label(add_dialog, text="重复周期:").pack(pady=(10, 5))
+        
+        # 快捷按钮
+        quick_frame = tk.Frame(add_dialog)
+        quick_frame.pack(pady=5)
+        
+        repeat_vars = [tk.BooleanVar() for _ in range(7)]
+        
+        def set_weekdays():
+            """设置工作日（周一到周五）"""
+            for i in range(7):
+                repeat_vars[i].set(i < 5)
+        
+        def set_weekends():
+            """设置周末（周六、周日）"""
+            for i in range(7):
+                repeat_vars[i].set(i >= 5)
+        
+        def set_everyday():
+            """设置每天"""
+            for i in range(7):
+                repeat_vars[i].set(True)
+        
+        tk.Button(quick_frame, text="工作日", command=set_weekdays, width=8).pack(side=tk.LEFT, padx=2)
+        tk.Button(quick_frame, text="周末", command=set_weekends, width=8).pack(side=tk.LEFT, padx=2)
+        tk.Button(quick_frame, text="每天", command=set_everyday, width=8).pack(side=tk.LEFT, padx=2)
+        
+        # 7 个复选框（周一到周日）
+        days_frame = tk.Frame(add_dialog)
+        days_frame.pack(pady=5)
+        
+        day_labels = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+        for i in range(7):
+            cb = tk.Checkbutton(days_frame, text=day_labels[i], variable=repeat_vars[i])
+            cb.pack(side=tk.LEFT, padx=3)
+        
         def add():
             time_str = time_entry.get().strip()
             label = label_entry.get().strip()
-            if self.add_alarm(time_str, label):
+            # 收集选中的重复日期
+            selected_days = [i for i in range(7) if repeat_vars[i].get()]
+            if self.add_alarm(time_str, label, selected_days):
                 self._refresh_alarm_listbox()
                 add_dialog.destroy()
             else:
@@ -1594,6 +1750,43 @@ class ClockApp:
         
         print(f"⏳ 倒计时已设置：{name} ({seconds}秒)")
     
+    def set_timer_custom(self) -> None:
+        """
+        设置自定义倒计时时间
+        
+        从小时、分钟、秒输入框读取时间并设置倒计时。
+        """
+        try:
+            hours = int(self.timer_hour_entry.get().strip() or 0)
+            minutes = int(self.timer_min_entry.get().strip() or 0)
+            seconds = int(self.timer_sec_entry.get().strip() or 0)
+            
+            total_seconds = hours * 3600 + minutes * 60 + seconds
+            
+            if total_seconds <= 0:
+                messagebox.showinfo("提示", "请输入有效的时间")
+                return
+            
+            # 如果正在运行，先停止
+            if self.timer.is_running:
+                self.timer_stop()
+            
+            self.timer.total_seconds = total_seconds
+            self.timer.remaining_seconds = float(total_seconds)
+            self.timer.preset_name = "自定义"
+            self.timer.is_running = False
+            
+            # 更新显示
+            self.update_timer_display()
+            self.timer_status_var.set(f"已设置：{hours:02d}:{minutes:02d}:{seconds:02d}")
+            
+            # 保存配置
+            self.save_timer_config()
+            
+            print(f"⏳ 自定义倒计时已设置：{hours:02d}:{minutes:02d}:{seconds:02d}")
+        except ValueError:
+            messagebox.showerror("错误", "请输入有效的数字")
+    
     def toggle_timer(self) -> None:
         """启动/停止倒计时"""
         if self.timer.is_running:
@@ -1698,6 +1891,10 @@ class ClockApp:
         # 声音提醒
         if self.timer.sound_enabled:
             self.root.bell()
+        
+        # 发送系统通知
+        preset_name = self.timer.preset_name if self.timer.preset_name else "倒计时"
+        self.send_notification("⏰ 倒计时完成", preset_name)
         
         print("⏰ 倒计时完成！")
     
