@@ -958,9 +958,7 @@ class ClockApp:
         self.root.bind('<F>', lambda e: self.toggle_fullscreen())
         self.root.bind('<t>', lambda e: self.toggle_topmost())
         self.root.bind('<T>', lambda e: self.toggle_topmost())
-        self.root.bind('<1>', lambda e: self.mode_var.set('analog') or self.update_mode())
-        self.root.bind('<2>', lambda e: self.mode_var.set('digital') or self.update_mode())
-        self.root.bind('<3>', lambda e: self.mode_var.set('stopwatch') or self.update_mode())
+        # 注意：不绑定数字键 1/2/3 到模式切换，避免与输入框冲突
     
     def _update_button_states(self) -> None:
         """更新按钮状态显示"""
