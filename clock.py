@@ -819,12 +819,17 @@ class ClockApp:
         # 秒表 UI 框架（初始隐藏）
         self.stopwatch_frame: tk.Frame = tk.Frame(main_frame, bg=self.bg_color)
         
-        # 秒表时间显示
+        # 秒表时间显示（Label 方式 - 用于新的 toggle_stopwatch 方法）
         self.stopwatch_time_var: tk.StringVar = tk.StringVar(value="00:00:00.00")
         self.stopwatch_label: tk.Label = tk.Label(self.stopwatch_frame, textvariable=self.stopwatch_time_var,
                                                    font=("Courier New", 48, "bold"), bg=self.bg_color, 
                                                    fg=self.seg_color_on, relief=tk.FLAT)
         self.stopwatch_label.pack(pady=20)
+        
+        # 秒表画布（Canvas 方式 - 用于旧的 stopwatch_* 方法）
+        self.stopwatch_canvas: tk.Canvas = tk.Canvas(self.stopwatch_frame, width=400, height=100, 
+                                                      bg=self.face_color, highlightthickness=0)
+        self.stopwatch_canvas.pack(pady=10)
         
         # 呼吸灯效果控制
         self.breath_phase: float = 0.0  # 呼吸相位 (0-2π)
@@ -838,10 +843,17 @@ class ClockApp:
                                                   bg=self.accent_color, fg=self.text_color, font=("Arial", 12), width=10)
         self.sw_start_btn.pack(side=tk.LEFT, padx=10)
         
-        tk.Button(sw_btn_frame, text="🔄 重置", command=self.reset_stopwatch,
-                  bg=self.accent_color, fg=self.text_color, font=("Arial", 12), width=10).pack(side=tk.LEFT, padx=10)
+        self.sw_stop_btn: tk.Button = tk.Button(sw_btn_frame, text="⏸️ 停止", command=self.toggle_stopwatch,
+                                                 bg=self.accent_color, fg=self.text_color, font=("Arial", 12), width=10)
+        self.sw_stop_btn.pack(side=tk.LEFT, padx=10)
+        self.sw_stop_btn.config(state=tk.DISABLED)  # 初始禁用
         
-        tk.Button(sw_btn_frame, text="🏁 计次", command=self.record_lap,
+        self.sw_lap_btn: tk.Button = tk.Button(sw_btn_frame, text="🏁 计次", command=self.record_lap,
+                                                bg=self.accent_color, fg=self.text_color, font=("Arial", 12), width=10)
+        self.sw_lap_btn.pack(side=tk.LEFT, padx=10)
+        self.sw_lap_btn.config(state=tk.DISABLED)  # 初始禁用
+        
+        tk.Button(sw_btn_frame, text="🔄 重置", command=self.reset_stopwatch,
                   bg=self.accent_color, fg=self.text_color, font=("Arial", 12), width=10).pack(side=tk.LEFT, padx=10)
         
         # 计次记录列表
@@ -1337,14 +1349,9 @@ class ClockApp:
     
     def draw_segment(self, x1: float, y1: float, x2: float, y2: float, active: bool) -> None:
         """绘制单个段（带轻微发光效果）"""
-        if active:
-            # 激活状态：使用 brighter 颜色和加粗线条模拟发光
-            color: str = self.seg_color_on
-            thickness: int = self.seg_thickness + 2  # 加粗线条模拟发光
-        else:
-            # 未激活状态：使用较暗的颜色
-            color: str = self.seg_color_off
-            thickness: int = self.seg_thickness
+        # 根据 active 状态设置颜色和粗细
+        color: str = self.seg_color_on if active else self.seg_color_off
+        thickness: int = self.seg_thickness + 2 if active else self.seg_thickness
         
         self.seg_canvas.create_line(x1, y1, x2, y2, fill=color, width=thickness, 
                                     capstyle=tk.ROUND, joinstyle=tk.ROUND)
@@ -1352,20 +1359,20 @@ class ClockApp:
     def draw_digit(self, digit: int, x_offset: float) -> None:
         """绘制 7 段数码管数字"""
         # 数字对应的段 (a,b,c,d,e,f,g)
-        digit_segs: Dict[int, List[int]] = {
-            0: [1, 1, 1, 1, 1, 1, 0],
-            1: [0, 1, 1, 0, 0, 0, 0],
-            2: [1, 1, 0, 1, 1, 0, 1],
-            3: [1, 1, 1, 1, 0, 0, 1],
-            4: [0, 1, 1, 0, 0, 1, 1],
-            5: [1, 0, 1, 1, 0, 1, 1],
-            6: [1, 0, 1, 1, 1, 1, 1],
-            7: [1, 1, 1, 0, 0, 0, 0],
-            8: [1, 1, 1, 1, 1, 1, 1],
-            9: [1, 1, 1, 1, 0, 1, 1],
+        digit_segs: Dict[int, List[bool]] = {
+            0: [True, True, True, True, True, True, False],
+            1: [False, True, True, False, False, False, False],
+            2: [True, True, False, True, True, False, True],
+            3: [True, True, True, True, False, False, True],
+            4: [False, True, True, False, False, True, True],
+            5: [True, False, True, True, False, True, True],
+            6: [True, False, True, True, True, True, True],
+            7: [True, True, True, False, False, False, False],
+            8: [True, True, True, True, True, True, True],
+            9: [True, True, True, True, False, True, True],
         }
         
-        segs: List[int] = digit_segs.get(digit, [0, 0, 0, 0, 0, 0, 0])
+        segs: List[bool] = digit_segs.get(digit, [False, False, False, False, False, False, False])
         
         # 段坐标定义（相对于数字左上角）
         w: int = self.seg_width      # 40px 宽度
