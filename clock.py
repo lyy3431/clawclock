@@ -854,7 +854,7 @@ class ClockApp:
         # 7 段数码管段定义 (a,b,c,d,e,f,g) - 单个数字的段坐标
         self.seg_width: int = 35
         self.seg_height: int = 60
-        self.seg_thickness: int = 5
+        self.seg_thickness: int = 12
         self.digit_spacing: int = 10
         self.colon_space: int = 25
         
