@@ -824,7 +824,7 @@ class ClockApp:
         self.stopwatch_frame: tk.Frame = tk.Frame(main_frame, bg=self.bg_color)
         
         # 秒表时间显示（Label 方式）
-        self.stopwatch_time_var: tk.StringVar = tk.StringVar(value="00:00:00.00")
+        self.stopwatch_time_var: tk.StringVar = tk.StringVar(value="00:00:00.00")  # 毫秒两位显示
         self.stopwatch_label: tk.Label = tk.Label(self.stopwatch_frame, textvariable=self.stopwatch_time_var,
                                                    font=("Courier New", 72, "bold"), bg=self.bg_color, 
                                                    fg=self.seg_color_on, relief=tk.FLAT)
@@ -1201,7 +1201,7 @@ class ClockApp:
         # 重置状态
         self.stopwatch.elapsed_ms = 0
         self.stopwatch.laps = []
-        self.stopwatch_time_var.set("00:00:00.00")
+        self.stopwatch_time_var.set(self._format_time_ms(0))  # 使用格式化函数确保一致性
         self.sw_start_btn.config(text="▶️ 开始")
         
         # 清空计次列表
@@ -1283,11 +1283,11 @@ class ClockApp:
                 self.stopwatch_label.config(fg=self.seg_color_on)
     
     def _format_time_ms(self, ms: int) -> str:
-        """格式化时间为 HH:MM:SS.ms 格式"""
+        """格式化时间为 HH:MM:SS.ms 格式（毫秒保留两位）"""
         hours = ms // 3600000
         minutes = (ms % 3600000) // 60000
         seconds = (ms % 60000) // 1000
-        milliseconds = ms % 1000
+        milliseconds = (ms % 1000) // 10  # 保留两位（除以 10 去掉最后一位）
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:02d}"
     
     def _start_breath_effect(self) -> None:
@@ -1411,7 +1411,7 @@ class ClockApp:
     
     def draw_colon(self, x_offset: float) -> None:
         """绘制冒号分隔符"""
-        r: int = 3
+        r: int = 6  # 冒号圆点半径（扩大 1 倍，与数字更协调）
         h: int = self.seg_height
         cx: float = x_offset
         cy1: float = h // 3      # 上圆点垂直位置
