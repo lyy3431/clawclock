@@ -240,7 +240,7 @@ class ClockApp:
         theme_name: str = self.config.get("theme", {}).get("name", "dark")
         
         # 显示模式（从配置加载）
-        self.display_mode: str = self.config.get("display_mode", "analog")
+        self.display_mode: str = self.config.get("display_mode", "digital")  # 默认数字钟模式
         
         # 应用主题（会设置所有颜色）
         self.apply_theme(theme_name)
@@ -267,7 +267,7 @@ class ClockApp:
         config_file: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
         default_config: Dict[str, Any] = {
             "timezone": "Asia/Shanghai",
-            "display_mode": "analog",
+            "display_mode": "digital",  # 默认数字钟模式
             "window": {
                 "width": 600,
                 "height": 500,
@@ -652,9 +652,9 @@ class ClockApp:
         # 递归更新所有组件颜色
         self._recursive_update_colors(self.root)
         
-        # 更新 Canvas 背景色
+        # 更新 Canvas 背景色（与窗口底色相同）
         if hasattr(self, 'canvas'):
-            self.canvas.configure(bg=self.face_color)
+            self.canvas.configure(bg=self.bg_color)
         
         # 更新数码管 Canvas 背景色
         if hasattr(self, 'seg_canvas'):
@@ -814,8 +814,8 @@ class ClockApp:
         # 更新按钮状态
         self._update_button_states()
         
-        # Canvas for analog clock - 居中显示
-        self.canvas: tk.Canvas = tk.Canvas(main_frame, width=300, height=300, bg=self.face_color, highlightthickness=0)
+        # Canvas for analog clock - 居中显示（底色与窗口底色相同）
+        self.canvas: tk.Canvas = tk.Canvas(main_frame, width=300, height=300, bg=self.bg_color, highlightthickness=0)
         self.canvas.pack(pady=10)  # 居中显示
         
         # Digital time display - 7 段数码管风格（初始隐藏）
@@ -975,6 +975,9 @@ class ClockApp:
         # UI 初始化完成后，应用当前主题（刷新所有组件颜色）
         if hasattr(self, 'canvas'):
             self.refresh_ui()
+        
+        # 初始化显示模式（确保显示正确的模式）
+        self.update_mode()
     
     def _update_button_states(self) -> None:
         """更新按钮状态显示"""
