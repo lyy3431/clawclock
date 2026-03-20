@@ -164,9 +164,12 @@ class ClockApp:
         self.timer_is_blinking: bool = False
         
         # 应用窗口配置
-        width: int = self.config.get("window", {}).get("width", 600)
-        height: int = self.config.get("window", {}).get("height", 500)
-        resizable: bool = self.config.get("window", {}).get("resizable", True)  # 默认允许调整大小
+        window_config: Dict[str, Any] = self.config.get("window", {})
+        width: int = window_config.get("width", 600)
+        height: int = window_config.get("height", 500)
+        # 确保 resizable 是布尔值（兼容旧配置）
+        resizable_raw: Any = window_config.get("resizable", True)
+        resizable: bool = bool(resizable_raw) if not isinstance(resizable_raw, bool) else resizable_raw
         x: Optional[int] = self.config.get("window", {}).get("x", None)
         y: Optional[int] = self.config.get("window", {}).get("y", None)
         always_on_top: bool = self.config.get("window", {}).get("always_on_top", False)
@@ -178,6 +181,7 @@ class ClockApp:
         else:
             self.root.geometry(f"{width}x{height}")
         
+        # 设置窗口是否可调整大小（Tkinter 需要两个参数：width, height）
         self.root.resizable(resizable, resizable)
         
         # 窗口置顶
@@ -2034,7 +2038,9 @@ class ClockApp:
             # 保存窗口配置
             self.config["window"]["width"] = width
             self.config["window"]["height"] = height
-            self.config["window"]["resizable"] = self.root.resizable()
+            # resizable() 返回元组 (width, height)，转换为布尔值
+            resizable_state = self.root.resizable()
+            self.config["window"]["resizable"] = bool(resizable_state[0]) if isinstance(resizable_state, tuple) else True
             
             # 如果有位置信息，也保存
             if len(parts) >= 3:
