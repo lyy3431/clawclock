@@ -748,11 +748,11 @@ class ClockApp:
         
         # 格式化主题选项显示
         theme_values: List[str] = []
-        theme_name_to_display: Dict[str, str] = {}
+        theme_display_to_name: Dict[str, str] = {}  # display_name → name 的映射
         for name, data in self.themes.items():
             display_name: str = data.get("display_name", name)
             theme_values.append(display_name)
-            theme_name_to_display[display_name] = name
+            theme_display_to_name[display_name] = name  # 直接创建 display_name → name 映射
         
         self.theme_combo: ttk.Combobox = ttk.Combobox(theme_frame, values=theme_values, width=28, state="readonly")
         # 设置默认主题（从配置加载）
@@ -763,8 +763,8 @@ class ClockApp:
         self.theme_combo.bind("<<ComboboxSelected>>", self.on_theme_change)
         
         # Store theme name mapping
-        self.theme_name_to_display: Dict[str, str] = theme_name_to_display
-        self.theme_display_to_name: Dict[str, str] = {v: k for k, v in theme_name_to_display.items()}
+        self.theme_display_to_name: Dict[str, str] = theme_display_to_name
+        self.theme_name_to_display: Dict[str, str] = {v: k for k, v in theme_display_to_name.items()}
         
         # Mode toggle - Analog, Digital, Stopwatch
         self.mode_var: tk.StringVar = tk.StringVar(value=self.display_mode)
@@ -969,9 +969,6 @@ class ClockApp:
         
         # 初始化显示模式（确保显示正确的模式）
         self.update_mode()
-        
-        # 调试输出：主题映射
-        print(f"🔍 调试：theme_display_to_name={self.theme_display_to_name}")
     
     def _update_button_states(self) -> None:
         """更新按钮状态显示"""
@@ -1548,8 +1545,6 @@ class ClockApp:
     def on_theme_change(self, event: tk.Event) -> None:
         """主题切换事件处理"""
         selected: str = self.theme_combo.get()
-        print(f"🔍 调试：selected={selected}")
-        print(f"🔍 调试：theme_display_to_name={self.theme_display_to_name}")
         # 从显示名映射到主题名
         theme_name: str = self.theme_display_to_name.get(selected, "dark")
         print(f"🎨 主题切换：{selected} → {theme_name}")
