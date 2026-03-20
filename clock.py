@@ -969,6 +969,9 @@ class ClockApp:
         
         # 初始化显示模式（确保显示正确的模式）
         self.update_mode()
+        
+        # 调试输出：主题映射
+        print(f"🔍 调试：theme_display_to_name={self.theme_display_to_name}")
     
     def _update_button_states(self) -> None:
         """更新按钮状态显示"""
@@ -1545,6 +1548,8 @@ class ClockApp:
     def on_theme_change(self, event: tk.Event) -> None:
         """主题切换事件处理"""
         selected: str = self.theme_combo.get()
+        print(f"🔍 调试：selected={selected}")
+        print(f"🔍 调试：theme_display_to_name={self.theme_display_to_name}")
         # 从显示名映射到主题名
         theme_name: str = self.theme_display_to_name.get(selected, "dark")
         print(f"🎨 主题切换：{selected} → {theme_name}")
