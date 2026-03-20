@@ -29,7 +29,7 @@ ClawClock - 图形化时钟应用
 """
 
 # ==================== 版本常量 ====================
-__version__ = "1.6.1"
+__version__ = "1.6.4"
 __version_info__ = (1, 6, 1)  # (major, minor, patch)
 
 import tkinter as tk
@@ -624,9 +624,8 @@ class ClockApp:
         self.config["theme"]["name"] = theme_name
         self.config["theme"]["colors"] = colors
         
-        # 重新绘制 UI（只在 UI 已初始化后调用）
-        if hasattr(self, 'canvas'):
-            self.refresh_ui()
+        # 重新绘制 UI（刷新所有组件颜色）
+        self.refresh_ui()
         
         # 保存配置
         self.save_config()
@@ -660,6 +659,14 @@ class ClockApp:
         if hasattr(self, 'seg_canvas'):
             self.seg_canvas.configure(bg=self.face_color)
         
+        # 更新秒表 Label 颜色
+        if hasattr(self, 'stopwatch_label'):
+            self.stopwatch_label.config(fg=self.seg_color_on)
+        
+        # 更新计时器 Label 颜色
+        if hasattr(self, 'timer_label'):
+            self.timer_label.config(fg=self.text_color)
+        
         # 重新绘制表盘
         self.draw_clock_face()
         
@@ -668,6 +675,11 @@ class ClockApp:
             now = datetime.datetime.now()
             time_str = now.strftime("%H:%M:%S")
             self.draw_seven_segment_time(time_str)
+        
+        # 如果是秒表模式，重新绘制
+        if self.mode_var.get() == "stopwatch":
+            if hasattr(self, 'stopwatch_elapsed_ms'):
+                self.stopwatch_time_var.set(self._format_time_ms(self.stopwatch.elapsed_ms))
         
         # 强制刷新窗口
         self.root.update_idletasks()
@@ -810,7 +822,7 @@ class ClockApp:
         # 不立即 pack，由 update_mode 控制显示
         
         # 7 段数码管画布 - 计算所需宽度
-        canvas_width: int = 500
+        canvas_width: int = 560
         canvas_height: int = 130
         self.seg_canvas: tk.Canvas = tk.Canvas(self.digital_frame, width=canvas_width, height=canvas_height, 
                                                 bg=self.bg_color, highlightthickness=0)
@@ -1410,8 +1422,8 @@ class ClockApp:
         self.draw_segment(x_offset + margin + t, h // 2, x_offset + w - margin - t, h // 2, segs[6])
     
     def draw_colon(self, x_offset: float) -> None:
-        """绘制冒号分隔符"""
-        r: int = 6  # 冒号圆点半径（扩大 1 倍，与数字更协调）
+        """绘制冒号分隔符（直径与数码字笔画宽度相同）"""
+        r: int = self.seg_thickness // 2  # 冒号半径 = 笔画宽度的一半（直径=笔画宽度）
         h: int = self.seg_height
         cx: float = x_offset
         cy1: float = h // 3      # 上圆点垂直位置
@@ -1420,7 +1432,7 @@ class ClockApp:
         self.seg_canvas.create_oval(cx-r, cy2-r, cx+r, cy2+r, fill=self.seg_color_on)
     
     def draw_seven_segment_time(self, time_str: str) -> None:
-        """绘制 7 段数码管时间显示"""
+        """绘制 7 段数码管时间显示（时分秒间隔一个数码字宽度）"""
         self.seg_canvas.delete("all")
         
         # 解析时间 HH:MM:SS
@@ -1431,17 +1443,17 @@ class ClockApp:
                           int(parts[2][0]), int(parts[2][1])]  # 秒
             
             # 计算每位数字的 x 偏移量
-            w: int = self.seg_width      # 数字宽度 (40px)
-            s: int = self.digit_spacing  # 数字间距 (8px)
-            c: int = self.colon_space    # 冒号区空间 (20px)
+            w: int = self.seg_width      # 数字宽度
+            s: int = self.digit_spacing  # 数字间距
+            c: int = w                   # 冒号区空间 = 一个数码字宽度（时分秒间隔一个数码字）
             margin: int = 15             # 左右边距
             
             # 逐步计算每个位置的起始 x 坐标
             x0: float = margin                                    # 小时十位
             x1: float = x0 + w + s                                # 小时个位
-            x2: float = x1 + w + s + c                            # 分钟十位（跳过冒号区）
+            x2: float = x1 + w + s + c                            # 分钟十位（跳过一个数码字宽度的间隔）
             x3: float = x2 + w + s                                # 分钟个位
-            x4: float = x3 + w + s + c                            # 秒钟十位（跳过冒号区）
+            x4: float = x3 + w + s + c                            # 秒钟十位（跳过一个数码字宽度的间隔）
             x5: float = x4 + w + s                                # 秒钟个位
             
             offsets: List[float] = [x0, x1, x2, x3, x4, x5]
@@ -1449,9 +1461,9 @@ class ClockApp:
             for i, digit in enumerate(digits):
                 self.draw_digit(digit, offsets[i])
             
-            # 绘制冒号（在冒号区正中央）
-            colon1_x: float = x1 + w + c // 2    # 时分之间的冒号
-            colon2_x: float = x3 + w + c // 2    # 分秒之间的冒号
+            # 绘制冒号（在间隔正中央）
+            colon1_x: float = x1 + w + s + c // 2    # 时分之间的冒号（间隔中间）
+            colon2_x: float = x3 + w + s + c // 2    # 分秒之间的冒号（间隔中间）
             self.draw_colon(colon1_x)
             self.draw_colon(colon2_x)
     
