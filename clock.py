@@ -671,19 +671,23 @@ class ClockApp:
         # 重新绘制表盘
         self.draw_clock_face()
         
-        # 如果是数字模式，重新绘制数码管
-        if self.mode_var.get() == "digital":
-            now = datetime.datetime.now()
-            time_str = now.strftime("%H:%M:%S")
-            self.draw_seven_segment_time(time_str)
+        # 重新绘制数码管（所有模式都更新，因为 seg_canvas 始终存在）
+        now = datetime.datetime.now()
+        time_str = now.strftime("%H:%M:%S")
+        self.draw_seven_segment_time(time_str)
         
         # 如果是秒表模式，重新绘制
         if self.mode_var.get() == "stopwatch":
-            if hasattr(self, 'stopwatch_elapsed_ms'):
-                self.stopwatch_time_var.set(self._format_time_ms(self.stopwatch.elapsed_ms))
+            self.stopwatch_time_var.set(self._format_time_ms(self.stopwatch.elapsed_ms))
+        
+        # 如果是计时器模式，重新绘制
+        if self.mode_var.get() == "timer":
+            self.update_timer_display()
         
         # 强制刷新窗口
         self.root.update_idletasks()
+        
+        print(f"🎨 UI 已刷新：bg={self.bg_color}, text={self.text_color}, accent={self.accent_color}")
     
     def _recursive_update_colors(self, widget: tk.Widget) -> None:
         """
@@ -709,7 +713,7 @@ class ClockApp:
             elif isinstance(widget, ttk.Button):
                 widget.configure(style='TButton')
             elif isinstance(widget, tk.Canvas):
-                widget.configure(bg=self.face_color)
+                widget.configure(bg=self.bg_color)
             elif isinstance(widget, tk.Listbox):
                 widget.configure(bg=self.face_color, fg=self.text_color, 
                                 selectbackground=self.accent_color, selectforeground=self.text_color)
@@ -1556,6 +1560,7 @@ class ClockApp:
         selected: str = self.theme_combo.get()
         # 从显示名映射到主题名
         theme_name: str = self.theme_display_to_name.get(selected, "dark")
+        print(f"🎨 主题切换：{selected} → {theme_name}")
         # 应用新主题
         self.apply_theme(theme_name)
     
