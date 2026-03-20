@@ -624,8 +624,9 @@ class ClockApp:
         self.config["theme"]["name"] = theme_name
         self.config["theme"]["colors"] = colors
         
-        # 重新绘制 UI（刷新所有组件颜色）
-        self.refresh_ui()
+        # 重新绘制 UI（只在 UI 已初始化后调用）
+        if hasattr(self, 'canvas'):
+            self.refresh_ui()
         
         # 保存配置
         self.save_config()
@@ -972,7 +973,8 @@ class ClockApp:
         # 注意：不绑定数字键 1/2/3 到模式切换，避免与输入框冲突
         
         # UI 初始化完成后，应用当前主题（刷新所有组件颜色）
-        self.refresh_ui()
+        if hasattr(self, 'canvas'):
+            self.refresh_ui()
     
     def _update_button_states(self) -> None:
         """更新按钮状态显示"""
