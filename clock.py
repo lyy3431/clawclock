@@ -166,7 +166,7 @@ class ClockApp:
         # 应用窗口配置
         width: int = self.config.get("window", {}).get("width", 600)
         height: int = self.config.get("window", {}).get("height", 500)
-        resizable: bool = self.config.get("window", {}).get("resizable", False)
+        resizable: bool = self.config.get("window", {}).get("resizable", True)  # 默认允许调整大小
         x: Optional[int] = self.config.get("window", {}).get("x", None)
         y: Optional[int] = self.config.get("window", {}).get("y", None)
         always_on_top: bool = self.config.get("window", {}).get("always_on_top", False)
@@ -267,7 +267,7 @@ class ClockApp:
             "window": {
                 "width": 600,
                 "height": 500,
-                "resizable": False,
+                "resizable": True,  # 默认允许调整窗口大小
                 "always_on_top": False,
                 "fullscreen": False
             },
@@ -621,8 +621,7 @@ class ClockApp:
         self.config["theme"]["colors"] = colors
         
         # 重新绘制 UI
-        if hasattr(self, 'canvas'):
-            self.refresh_ui()
+        self.refresh_ui()
         
         # 保存配置
         self.save_config()
@@ -806,8 +805,8 @@ class ClockApp:
         # 不立即 pack，由 update_mode 控制显示
         
         # 7 段数码管画布 - 计算所需宽度
-        canvas_width: int = 330
-        canvas_height: int = 80
+        canvas_width: int = 500
+        canvas_height: int = 130
         self.seg_canvas: tk.Canvas = tk.Canvas(self.digital_frame, width=canvas_width, height=canvas_height, 
                                                 bg=self.bg_color, highlightthickness=0)
         self.seg_canvas.pack(expand=True)
@@ -1152,24 +1151,28 @@ class ClockApp:
     # ==================== 秒表功能 ====================
     
     def toggle_stopwatch(self) -> None:
-        """启动/停止秒表"""
+        """启动/停止秒表（开始/暂停/继续）"""
         if self.stopwatch.is_running:
-            # 停止秒表
+            # 暂停秒表
             self.stopwatch.is_running = False
             if self.stopwatch_job:
                 self.root.after_cancel(self.stopwatch_job)
                 self.stopwatch_job = None
-            self.sw_start_btn.config(text="▶️ 继续")
+            self.sw_start_btn.config(text="▶️ 继续")  # 暂停后显示"继续"
             self.sw_stop_btn.config(state=tk.DISABLED)
             self.sw_lap_btn.config(state=tk.DISABLED)
             # 停止呼吸灯
             self._stop_breath_effect()
-            print("⏱️ 秒表已停止")
+            print("⏱️ 秒表已暂停")
         else:
-            # 启动秒表
+            # 启动/继续秒表
             self.stopwatch.is_running = True
             self.stopwatch.start_time = time.time()
-            self.sw_start_btn.config(text="⏸️ 停止")
+            # 根据已用时间判断显示"开始"还是"继续"
+            if self.stopwatch.elapsed_ms == 0:
+                self.sw_start_btn.config(text="⏸️ 暂停")  # 首次启动显示"暂停"
+            else:
+                self.sw_start_btn.config(text="⏸️ 暂停")  # 继续时显示"暂停"
             self.sw_stop_btn.config(state=tk.NORMAL)
             self.sw_lap_btn.config(state=tk.NORMAL)
             self._update_stopwatch_display()
