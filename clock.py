@@ -624,9 +624,8 @@ class ClockApp:
         self.config["theme"]["name"] = theme_name
         self.config["theme"]["colors"] = colors
         
-        # 重新绘制 UI（只在 UI 已初始化后调用）
-        if hasattr(self, 'canvas'):
-            self.refresh_ui()
+        # 重新绘制 UI（刷新所有组件颜色）
+        self.refresh_ui()
         
         # 保存配置
         self.save_config()
@@ -637,52 +636,35 @@ class ClockApp:
         """
         刷新 UI 以应用新主题（深度递归刷新所有组件）
         """
-        # 更新 ttk 样式
+        # 更新 ttk 样式（强制更新）
         style = ttk.Style()
+        style.theme_use('clam')  # 重新应用主题以刷新样式
+        
+        # 配置所有 ttk 组件样式
         style.configure('TFrame', background=self.bg_color)
         style.configure('TLabel', background=self.bg_color, foreground=self.text_color)
         style.configure('TRadiobutton', background=self.bg_color, foreground=self.text_color,
-                       selectcolor=self.accent_color)
+                       selectcolor=self.accent_color, indicatorcolor=self.accent_color)
         style.configure('TCombobox', fieldbackground=self.bg_color, 
                        background=self.accent_color, foreground=self.text_color,
                        arrowcolor=self.text_color)
         style.configure('TButton', background=self.accent_color, foreground=self.text_color)
         style.configure('TCheckbutton', background=self.bg_color, foreground=self.text_color)
+        style.map('TButton',
+                  background=[('active', self.bg_color), ('!active', self.accent_color)],
+                  foreground=[('active', self.text_color), ('!active', self.text_color)])
         
         # 递归更新所有组件颜色
         self._recursive_update_colors(self.root)
         
-        # 更新 Canvas 背景色（与窗口底色相同）
-        if hasattr(self, 'canvas'):
-            self.canvas.configure(bg=self.bg_color)
-        
-        # 更新数码管 Canvas 背景色（与窗口底色相同）
-        if hasattr(self, 'seg_canvas'):
-            self.seg_canvas.configure(bg=self.bg_color)
-        
-        # 更新秒表 Label 颜色
-        if hasattr(self, 'stopwatch_label'):
-            self.stopwatch_label.config(fg=self.seg_color_on)
-        
-        # 更新计时器 Label 颜色
-        if hasattr(self, 'timer_label'):
-            self.timer_label.config(fg=self.text_color)
-        
-        # 重新绘制表盘
-        self.draw_clock_face()
-        
-        # 重新绘制数码管（所有模式都更新，因为 seg_canvas 始终存在）
-        now = datetime.datetime.now()
-        time_str = now.strftime("%H:%M:%S")
-        self.draw_seven_segment_time(time_str)
-        
-        # 如果是秒表模式，重新绘制
-        if self.mode_var.get() == "stopwatch":
-            self.stopwatch_time_var.set(self._format_time_ms(self.stopwatch.elapsed_ms))
-        
-        # 如果是计时器模式，重新绘制
-        if self.mode_var.get() == "timer":
-            self.update_timer_display()
+        # 更新所有 Canvas 背景色
+        for widget in self.root.winfo_children():
+            if isinstance(widget, tk.Canvas):
+                widget.configure(bg=self.bg_color)
+            # 递归检查子组件中的 Canvas
+            for child in widget.winfo_children():
+                if isinstance(child, tk.Canvas):
+                    child.configure(bg=self.bg_color)
         
         # 强制刷新窗口
         self.root.update_idletasks()
@@ -691,7 +673,7 @@ class ClockApp:
     
     def _recursive_update_colors(self, widget: tk.Widget) -> None:
         """
-        递归更新组件颜色
+        递归更新所有组件颜色
         
         Args:
             widget: 要更新的组件
@@ -705,7 +687,7 @@ class ClockApp:
             elif isinstance(widget, tk.Radiobutton):
                 widget.configure(bg=self.bg_color, fg=self.text_color, selectcolor=self.accent_color,
                                activebackground=self.bg_color, activeforeground=self.text_color)
-            elif isinstance(widget, ttk.Combobox):
+            elif isinstance(widget, (ttk.Combobox, ttk.Entry)):
                 widget.configure(style='TCombobox')
             elif isinstance(widget, tk.Button):
                 widget.configure(bg=self.accent_color, fg=self.text_color,
@@ -715,18 +697,23 @@ class ClockApp:
             elif isinstance(widget, tk.Canvas):
                 widget.configure(bg=self.bg_color)
             elif isinstance(widget, tk.Listbox):
-                widget.configure(bg=self.face_color, fg=self.text_color, 
+                widget.configure(bg=self.bg_color, fg=self.text_color, 
                                 selectbackground=self.accent_color, selectforeground=self.text_color)
             elif isinstance(widget, ttk.Checkbutton):
                 widget.configure(style='TCheckbutton')
             elif isinstance(widget, tk.Checkbutton):
                 widget.configure(bg=self.bg_color, fg=self.text_color, selectcolor=self.accent_color)
+            elif isinstance(widget, ttk.Label):
+                widget.configure(style='TLabel')
+            elif isinstance(widget, ttk.Frame):
+                widget.configure(style='TFrame')
             
-            # 递归更新子组件
+            # 递归更新所有子组件
             for child in widget.winfo_children():
                 self._recursive_update_colors(child)
         except (tk.TclError, AttributeError) as e:
-            pass  # 某些组件不支持某些属性
+            # 某些组件不支持某些属性，跳过
+            pass
     
     def setup_ui(self) -> None:
         """设置用户界面"""
