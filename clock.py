@@ -656,10 +656,6 @@ class ClockApp:
         if hasattr(self, 'seg_canvas'):
             self.seg_canvas.configure(bg=self.face_color)
         
-        # 更新秒表 Canvas 背景色
-        if hasattr(self, 'stopwatch_canvas'):
-            self.stopwatch_canvas.configure(bg=self.face_color)
-        
         # 重新绘制表盘
         self.draw_clock_face()
         
@@ -823,17 +819,12 @@ class ClockApp:
         # 秒表 UI 框架（初始隐藏）
         self.stopwatch_frame: tk.Frame = tk.Frame(main_frame, bg=self.bg_color)
         
-        # 秒表时间显示（Label 方式 - 用于新的 toggle_stopwatch 方法）
+        # 秒表时间显示（Label 方式）
         self.stopwatch_time_var: tk.StringVar = tk.StringVar(value="00:00:00.00")
         self.stopwatch_label: tk.Label = tk.Label(self.stopwatch_frame, textvariable=self.stopwatch_time_var,
-                                                   font=("Courier New", 48, "bold"), bg=self.bg_color, 
+                                                   font=("Courier New", 72, "bold"), bg=self.bg_color, 
                                                    fg=self.seg_color_on, relief=tk.FLAT)
         self.stopwatch_label.pack(pady=20)
-        
-        # 秒表画布（Canvas 方式 - 用于旧的 stopwatch_* 方法）
-        self.stopwatch_canvas: tk.Canvas = tk.Canvas(self.stopwatch_frame, width=400, height=100, 
-                                                      bg=self.face_color, highlightthickness=0)
-        self.stopwatch_canvas.pack(pady=10)
         
         # 呼吸灯效果控制
         self.breath_phase: float = 0.0  # 呼吸相位 (0-2π)
@@ -872,7 +863,7 @@ class ClockApp:
         # 倒计时时间显示
         self.timer_time_var: tk.StringVar = tk.StringVar(value="00:00:00")
         self.timer_label: tk.Label = tk.Label(self.timer_frame, textvariable=self.timer_time_var,
-                                               font=("Courier New", 48, "bold"), bg=self.bg_color, fg=self.text_color)
+                                               font=("Courier New", 72, "bold"), bg=self.bg_color, fg=self.text_color)
         self.timer_label.pack(pady=20)
         
         # 倒计时状态标签
@@ -945,11 +936,11 @@ class ClockApp:
         # 7 段数码管段定义 (a,b,c,d,e,f,g) - 单个数字的段坐标
         # 优化长宽比，让数码管更接近日常看到的样子
         # 经典数码管比例：宽:高 ≈ 2:3，段宽约为主宽度的1/3
-        self.seg_width: int = 40       # 段宽度（适中）
-        self.seg_height: int = 65      # 段高度（保证纵向比例）
-        self.seg_thickness: int = 10   # 段粗细（适中，不要太粗也不要太细）
-        self.digit_spacing: int = 8    # 数字间距（紧凑些）
-        self.colon_space: int = 20     # 冒号区空间（稍小）
+        self.seg_width: int = 60       # 段宽度（适中）
+        self.seg_height: int = 100      # 段高度（保证纵向比例）
+        self.seg_thickness: int = 14   # 段粗细（适中，不要太粗也不要太细）
+        self.digit_spacing: int = 10    # 数字间距（紧凑些）
+        self.colon_space: int = 25     # 冒号区空间（稍小）
         
         # Draw clock face
         self.draw_clock_face()
@@ -1169,12 +1160,18 @@ class ClockApp:
                 self.root.after_cancel(self.stopwatch_job)
                 self.stopwatch_job = None
             self.sw_start_btn.config(text="▶️ 继续")
+            self.sw_stop_btn.config(state=tk.DISABLED)
+            self.sw_lap_btn.config(state=tk.DISABLED)
+            # 停止呼吸灯
+            self._stop_breath_effect()
             print("⏱️ 秒表已停止")
         else:
             # 启动秒表
             self.stopwatch.is_running = True
             self.stopwatch.start_time = time.time()
             self.sw_start_btn.config(text="⏸️ 停止")
+            self.sw_stop_btn.config(state=tk.NORMAL)
+            self.sw_lap_btn.config(state=tk.NORMAL)
             self._update_stopwatch_display()
             print("⏱️ 秒表已启动")
     
@@ -1248,6 +1245,10 @@ class ClockApp:
     
     def _update_stopwatch_display(self) -> None:
         """更新秒表显示"""
+        # 如果 UI 未初始化，直接返回
+        if not hasattr(self, 'stopwatch_time_var'):
+            return
+        
         if self.stopwatch.is_running:
             # 计算当前时间
             current_time = time.time()
@@ -1580,67 +1581,42 @@ class ClockApp:
         
         return f"{minutes:02d}:{seconds:02d}.{milliseconds:02d}"
     
-    def draw_stopwatch_time(self, elapsed_ms: int) -> None:
-        """
-        在秒表画布上绘制时间显示（7 段数码管风格）
-        
-        Args:
-            elapsed_ms: 毫秒数
-        """
-        self.stopwatch_canvas.delete("all")
-        
-        total_seconds = elapsed_ms // 1000
-        minutes = total_seconds // 60
-        seconds = total_seconds % 60
-        milliseconds = (elapsed_ms % 1000) // 10  # 显示 2 位毫秒
-        
-        # 绘制 MM:SS.ms 格式
-        # 使用简化的文本显示（因为需要更多位数）
-        time_str = f"{minutes:02d}:{seconds:02d}.{milliseconds:02d}"
-        
-        # 在画布中央显示
-        self.stopwatch_canvas.create_text(
-            200, 50, 
-            text=time_str, 
-            font=("Courier", 48, "bold"),
-            fill=self.seg_color_on,
-            anchor=tk.CENTER
-        )
-        
-        # 添加标签
-        self.stopwatch_canvas.create_text(
-            200, 85,
-            text="秒表计时",
-            font=("Arial", 12),
-            fill=self.text_color,
-            anchor=tk.CENTER
-        )
-    
-    def update_stopwatch_display(self) -> None:
-        """更新秒表显示"""
-        if self.stopwatch.is_running:
-            # 计算当前显示时间
-            current_time = time.time()
-            elapsed = int((current_time - self.stopwatch.start_time) * 1000) + self.stopwatch.elapsed_ms
-            self.draw_stopwatch_time(elapsed)
-            # 每 50ms 更新一次（20fps）
-            self.stopwatch_job = self.root.after(50, self.update_stopwatch_display)
-        else:
-            self.draw_stopwatch_time(self.stopwatch.elapsed_ms)
+    # ========== 以下旧的 stopwatch_* 方法已废弃，使用 toggle_stopwatch 等新方法 ==========
     
     def stopwatch_start(self) -> None:
         """开始秒表计时"""
         if not self.stopwatch.is_running:
             self.stopwatch.is_running = True
             self.stopwatch.start_time = time.time()
-            self.stopwatch_job = self.root.after(50, self.update_stopwatch_display)
+            # 启动显示更新（如果 root 存在）
+            if hasattr(self, 'root') and hasattr(self.root, 'after'):
+                self.stopwatch_job = self.root.after(50, self._update_stopwatch_display_loop)
             
-            # 更新按钮状态
-            self.sw_start_btn.config(state=tk.DISABLED)
-            self.sw_stop_btn.config(state=tk.NORMAL)
-            self.sw_lap_btn.config(state=tk.NORMAL)
+            # 更新按钮状态（如果按钮存在）
+            if hasattr(self, 'sw_start_btn'):
+                self.sw_start_btn.config(state=tk.DISABLED)
+                self.sw_stop_btn.config(state=tk.NORMAL)
+                self.sw_lap_btn.config(state=tk.NORMAL)
             
             print("⏱️ 秒表已开始计时")
+    
+    def _update_stopwatch_display_loop(self) -> None:
+        """秒表显示更新循环（用于旧的 stopwatch_start 方法）"""
+        if not self.stopwatch.is_running:
+            return
+        
+        if hasattr(self, 'stopwatch_time_var'):
+            current_time = time.time()
+            delta_ms = int((current_time - self.stopwatch.start_time) * 1000)
+            total_ms = self.stopwatch.elapsed_ms + delta_ms
+            self.stopwatch_time_var.set(self._format_time_ms(total_ms))
+            # 启动呼吸灯
+            if not self.breath_job:
+                self._start_breath_effect()
+        
+        # 继续更新
+        if hasattr(self, 'root') and hasattr(self.root, 'after'):
+            self.stopwatch_job = self.root.after(50, self._update_stopwatch_display_loop)
     
     def stopwatch_stop(self) -> None:
         """停止秒表计时"""
@@ -1656,13 +1632,15 @@ class ClockApp:
                 self.root.after_cancel(self.stopwatch_job)
                 self.stopwatch_job = None
             
-            # 更新按钮状态
-            self.sw_start_btn.config(state=tk.NORMAL)
-            self.sw_stop_btn.config(state=tk.DISABLED)
-            self.sw_lap_btn.config(state=tk.DISABLED)
+            # 更新按钮状态（如果按钮存在）
+            if hasattr(self, 'sw_start_btn'):
+                self.sw_start_btn.config(state=tk.NORMAL)
+                self.sw_stop_btn.config(state=tk.DISABLED)
+                self.sw_lap_btn.config(state=tk.DISABLED)
             
-            # 刷新显示
-            self.draw_stopwatch_time(self.stopwatch.elapsed_ms)
+            # 刷新显示（如果 UI 存在）
+            if hasattr(self, 'stopwatch_time_var'):
+                self.stopwatch_time_var.set(self._format_time_ms(self.stopwatch.elapsed_ms))
             
             print("⏱️ 秒表已停止")
     
@@ -1676,16 +1654,19 @@ class ClockApp:
         self.stopwatch.elapsed_ms = 0
         self.stopwatch.laps = []
         
-        # 清除计圈列表
-        self.lap_listbox.delete(0, tk.END)
+        # 清空计圈列表（如果存在）
+        if hasattr(self, 'lap_listbox'):
+            self.lap_listbox.delete(0, tk.END)
         
-        # 更新显示
-        self.draw_stopwatch_time(0)
+        # 更新显示（如果 UI 存在）
+        if hasattr(self, 'stopwatch_time_var'):
+            self.stopwatch_time_var.set("00:00:00.00")
         
-        # 更新按钮状态
-        self.sw_start_btn.config(state=tk.NORMAL)
-        self.sw_stop_btn.config(state=tk.DISABLED)
-        self.sw_lap_btn.config(state=tk.DISABLED)
+        # 更新按钮状态（如果按钮存在）
+        if hasattr(self, 'sw_start_btn'):
+            self.sw_start_btn.config(state=tk.NORMAL)
+            self.sw_stop_btn.config(state=tk.DISABLED)
+            self.sw_lap_btn.config(state=tk.DISABLED)
         
         print("⏱️ 秒表已复位")
     
@@ -1812,6 +1793,8 @@ class ClockApp:
         self.timer.is_running = True
         self.timer.start_time = time.time()
         self.timer_start_btn.config(text="⏸️ 暂停")
+        # 启动呼吸灯效果
+        self._start_timer_breath_effect()
         self._update_timer_loop()
         
         print("⏳ 倒计时已启动")
@@ -1827,6 +1810,9 @@ class ClockApp:
             if self.timer_job:
                 self.root.after_cancel(self.timer_job)
                 self.timer_job = None
+            
+            # 停止呼吸灯
+            self._stop_timer_breath_effect()
             
             self.timer_start_btn.config(text="▶️ 继续")
             self.timer_status_var.set("已暂停")
@@ -1849,6 +1835,8 @@ class ClockApp:
         self.timer.is_running = False
         self.timer_start_btn.config(text="▶️ 开始")
         self.timer_status_var.set("准备就绪")
+        # 停止呼吸灯和闪烁
+        self._stop_timer_breath_effect()
         self._stop_timer_blink()
         self.update_timer_display()
         
@@ -1936,6 +1924,55 @@ class ClockApp:
             self.timer_blink_job = None
         self.timer_label.config(fg=self.text_color)
         self.timer_frame.config(bg=self.bg_color)
+    
+    # ========== 计时器呼吸灯效果 ==========
+    
+    def _start_timer_breath_effect(self) -> None:
+        """启动计时器呼吸灯效果"""
+        self.timer_breath_phase = 0.0
+        self._update_timer_breath_effect()
+    
+    def _stop_timer_breath_effect(self) -> None:
+        """停止计时器呼吸灯效果"""
+        if hasattr(self, 'timer_breath_job') and self.timer_breath_job:
+            self.root.after_cancel(self.timer_breath_job)
+            self.timer_breath_job = None
+        # 恢复主题色
+        self.timer_label.config(fg=self.text_color)
+    
+    def _update_timer_breath_effect(self) -> None:
+        """更新计时器呼吸灯效果（颜色渐变）"""
+        import math
+        
+        if not self.timer.is_running:
+            return
+        
+        # 更新呼吸相位
+        self.timer_breath_phase += 0.1
+        if self.timer_breath_phase > 2 * math.pi:
+            self.timer_breath_phase -= 2 * math.pi
+        
+        # 计算呼吸因子 (0.5 - 1.0)
+        breath_factor = 0.75 + 0.25 * math.sin(self.timer_breath_phase)
+        
+        # 根据主题色计算当前颜色
+        if hasattr(self, 'seg_color_on'):
+            # 将十六进制颜色转换为 RGB
+            r = int(self.seg_color_on[1:3], 16)
+            g = int(self.seg_color_on[3:5], 16)
+            b = int(self.seg_color_on[5:7], 16)
+            
+            # 应用呼吸因子（亮度变化）
+            r = int(r * breath_factor)
+            g = int(g * breath_factor)
+            b = int(b * breath_factor)
+            
+            # 转换回十六进制
+            breath_color = f"#{r:02x}{g:02x}{b:02x}"
+            self.timer_label.config(fg=breath_color)
+        
+        # 继续更新
+        self.timer_breath_job = self.root.after(50, self._update_timer_breath_effect)
     
     def save_timer_config(self) -> None:
         """保存倒计时配置到 config.json"""
