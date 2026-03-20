@@ -29,8 +29,37 @@ ClawClock - 图形化时钟应用
 """
 
 # ==================== 版本常量 ====================
-__version__ = "1.6.4"
-__version_info__ = (1, 6, 1)  # (major, minor, patch)
+__version__ = "1.6.5"  # 手动版本号（fallback）
+__version_info__ = (1, 6, 5)  # (major, minor, patch)
+
+def get_version() -> str:
+    """
+    获取版本号（优先从 git 获取，fallback 到硬编码版本）
+    
+    Returns:
+        str: 版本号字符串
+    """
+    try:
+        import subprocess
+        # 尝试从 git 获取版本
+        result = subprocess.run(
+            ['git', 'describe', '--tags', '--always', '--dirty'],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            git_version = result.stdout.strip()
+            # 如果有 tag，格式如 v1.6.5 或 v1.6.5-2-gabc123
+            if git_version.startswith('v'):
+                return git_version[1:]  # 去掉 'v' 前缀
+            return git_version
+    except Exception:
+        pass  # git 不可用，使用硬编码版本
+    
+    # Fallback 到硬编码版本
+    return __version__
 
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -140,7 +169,7 @@ class ClockApp:
     def __init__(self, root: tk.Tk) -> None:
         """初始化时钟应用"""
         self.root = root
-        self.root.title(f"ClawClock v{__version__} - 图形时钟")
+        self.root.title(f"ClawClock v{get_version()} - 图形时钟")
         
         # 加载配置文件
         self.config: Dict[str, Any] = self.load_config()
