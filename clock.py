@@ -656,9 +656,9 @@ class ClockApp:
         if hasattr(self, 'canvas'):
             self.canvas.configure(bg=self.bg_color)
         
-        # 更新数码管 Canvas 背景色
+        # 更新数码管 Canvas 背景色（与窗口底色相同）
         if hasattr(self, 'seg_canvas'):
-            self.seg_canvas.configure(bg=self.face_color)
+            self.seg_canvas.configure(bg=self.bg_color)
         
         # 更新秒表 Label 颜色
         if hasattr(self, 'stopwatch_label'):
