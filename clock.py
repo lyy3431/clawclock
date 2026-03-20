@@ -25,8 +25,12 @@ ClawClock - 图形化时钟应用
 
 作者：ClawClock Development Team
 许可证：MIT
-版本：1.2.0
+版本：1.6.1
 """
+
+# ==================== 版本常量 ====================
+__version__ = "1.6.1"
+__version_info__ = (1, 6, 1)  # (major, minor, patch)
 
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -136,7 +140,7 @@ class ClockApp:
     def __init__(self, root: tk.Tk) -> None:
         """初始化时钟应用"""
         self.root = root
-        self.root.title("ClawClock - 图形时钟")
+        self.root.title(f"ClawClock v{__version__} - 图形时钟")
         
         # 加载配置文件
         self.config: Dict[str, Any] = self.load_config()
