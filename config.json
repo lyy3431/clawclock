@@ -1,49 +1,51 @@
 {
+  "alarms": [],
   "breath_light": {
+    "accelerate_on_complete": true,
+    "color_scheme": {
+      "completed": "#ff6b6b",
+      "normal": "#00d4aa",
+      "warning": "#ffb347"
+    },
     "enabled": true,
-    "mode": "digital",
-    "style": "soft",
     "frequency": 0.5,
     "intensity": 0.5,
-    "color_scheme": {
-      "normal": "#00d4aa",
-      "warning": "#ffb347",
-      "completed": "#ff6b6b"
-    },
-    "accelerate_on_complete": true,
-    "smooth_curve": true
+    "mode": "digital",
+    "smooth_curve": true,
+    "style": "soft"
   },
-  "display_mode": "analog",
+  "display_mode": "timer",
   "stopwatch": {
     "auto_save_laps": false,
+    "laps": [],
     "show_milliseconds": true
-  },
-  "timer": {
-    "total_duration": 0,
-    "remaining_time": 0,
-    "sound_enabled": true,
-    "last_preset": "番茄钟"
   },
   "theme": {
     "colors": {
-      "accent": "#0f3460",
-      "background": "#1a1a2e",
-      "face": "#16213e",
-      "hand": "#e94560",
-      "segment_off": "#331111",
-      "segment_on": "#ff3333",
-      "text": "#ffffff"
+      "accent": "#0f3b26",
+      "background": "#081a10",
+      "face": "#122b1d",
+      "hand": "#4ade80",
+      "segment_off": "#052a2a",
+      "segment_on": "#22c55e",
+      "text": "#86efac"
     },
-    "name": "dark"
+    "name": "green"
   },
-  "timezone": "Asia/Shanghai",
+  "timer": {
+    "last_preset": "番茄钟",
+    "remaining_time": 0,
+    "sound_enabled": true,
+    "total_duration": 0
+  },
+  "timezone": "Asia/Bangkok",
   "window": {
     "always_on_top": false,
     "fullscreen": false,
-    "height": 500,
-    "resizable": false,
-    "width": 600,
-    "x": 0,
-    "y": 0
+    "height": 558,
+    "resizable": true,
+    "width": 794,
+    "x": 205,
+    "y": 86
   }
 }
