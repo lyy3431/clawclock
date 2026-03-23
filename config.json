@@ -22,15 +22,15 @@
   },
   "theme": {
     "colors": {
-      "accent": "#0f3b26",
-      "background": "#081a10",
-      "face": "#122b1d",
-      "hand": "#4ade80",
-      "segment_off": "#052a2a",
-      "segment_on": "#22c55e",
-      "text": "#86efac"
+      "accent": "#d0d0d0",
+      "background": "#f8f8f8",
+      "face": "#e8e8e8",
+      "hand": "#0066cc",
+      "segment_off": "#b0b0b0",
+      "segment_on": "#0088ff",
+      "text": "#1a1a1a"
     },
-    "name": "green"
+    "name": "light"
   },
   "timer": {
     "last_preset": "番茄钟",

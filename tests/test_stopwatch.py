@@ -71,7 +71,7 @@ class TestStopwatchFunctions(unittest.TestCase):
         # 创建应用实例（需要 Mock tkinter 组件）
         with patch('clock.tk.Tk', return_value=self.mock_root):
             with patch('clock.ttk.Style'):
-                with patch('clock.os.path.exists', return_value=False):
+                with patch('clock_core.os.path.exists', return_value=False):
                     self.app = ClockApp.__new__(ClockApp)
                     self.app.root = self.mock_root
                     self.app.config = {
@@ -104,7 +104,7 @@ class TestStopwatchFunctions(unittest.TestCase):
         
         with patch('clock.tk.Tk', return_value=mock_root):
             with patch('clock.ttk.Style'):
-                with patch('clock.os.path.exists', return_value=False):
+                with patch('clock_core.os.path.exists', return_value=False):
                     app = ClockApp.__new__(ClockApp)
                     app.root = mock_root
                     app.stopwatch = StopwatchState()
@@ -119,7 +119,7 @@ class TestStopwatchFunctions(unittest.TestCase):
         
         with patch('clock.tk.Tk', return_value=mock_root):
             with patch('clock.ttk.Style'):
-                with patch('clock.os.path.exists', return_value=False):
+                with patch('clock_core.os.path.exists', return_value=False):
                     app = ClockApp.__new__(ClockApp)
                     app.root = mock_root
                     app.stopwatch = StopwatchState()
@@ -135,7 +135,7 @@ class TestStopwatchFunctions(unittest.TestCase):
         
         with patch('clock.tk.Tk', return_value=mock_root):
             with patch('clock.ttk.Style'):
-                with patch('clock.os.path.exists', return_value=False):
+                with patch('clock_core.os.path.exists', return_value=False):
                     app = ClockApp.__new__(ClockApp)
                     app.root = mock_root
                     app.stopwatch = StopwatchState()
@@ -242,7 +242,7 @@ class TestStopwatchFunctions(unittest.TestCase):
         
         with patch('clock.tk.Tk', return_value=mock_root):
             with patch('clock.ttk.Style'):
-                with patch('clock.os.path.exists', return_value=False):
+                with patch('clock_core.os.path.exists', return_value=False):
                     app = ClockApp.__new__(ClockApp)
                     app.root = mock_root
                     app.stopwatch = StopwatchState()
@@ -264,7 +264,7 @@ class TestStopwatchEdgeCases(unittest.TestCase):
         
         with patch('clock.tk.Tk', return_value=mock_root):
             with patch('clock.ttk.Style'):
-                with patch('clock.os.path.exists', return_value=False):
+                with patch('clock_core.os.path.exists', return_value=False):
                     app = ClockApp.__new__(ClockApp)
                     app.root = mock_root
                     app.stopwatch = StopwatchState()
@@ -286,7 +286,7 @@ class TestStopwatchEdgeCases(unittest.TestCase):
         
         with patch('clock.tk.Tk', return_value=mock_root):
             with patch('clock.ttk.Style'):
-                with patch('clock.os.path.exists', return_value=False):
+                with patch('clock_core.os.path.exists', return_value=False):
                     app = ClockApp.__new__(ClockApp)
                     app.root = mock_root
                     app.stopwatch = StopwatchState()
@@ -304,7 +304,7 @@ class TestStopwatchEdgeCases(unittest.TestCase):
         
         with patch('clock.tk.Tk', return_value=mock_root):
             with patch('clock.ttk.Style'):
-                with patch('clock.os.path.exists', return_value=False):
+                with patch('clock_core.os.path.exists', return_value=False):
                     app = ClockApp.__new__(ClockApp)
                     app.root = mock_root
                     app.stopwatch = StopwatchState()
@@ -332,7 +332,7 @@ class TestStopwatchEdgeCases(unittest.TestCase):
         
         with patch('clock.tk.Tk', return_value=mock_root):
             with patch('clock.ttk.Style'):
-                with patch('clock.os.path.exists', return_value=False):
+                with patch('clock_core.os.path.exists', return_value=False):
                     app = ClockApp.__new__(ClockApp)
                     app.root = mock_root
                     app.stopwatch = StopwatchState()
