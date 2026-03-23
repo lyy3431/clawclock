@@ -1,0 +1,12 @@
+# ClawClock Dependencies
+# Python 3.8+ required
+
+# Timezone support
+pytz>=2023.0
+python-dateutil>=2.8.0
+
+# Development dependencies (optional)
+# pytest>=7.0.0        # Alternative test runner
+# mypy>=1.0.0          # Type checking
+# black>=23.0.0        # Code formatting
+# flake8>=6.0.0        # Linting

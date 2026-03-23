@@ -7,7 +7,7 @@ ClawClock 是一款专为 Linux 桌面设计的多功能时钟应用，支持模
 ![Tkinter](https://img.shields.io/badge/tkinter-builtin-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
 ![Version](https://img.shields.io/badge/version-1.6.0-orange.svg)
-![Tests](https://img.shields.io/badge/tests-146%20passed-brightgreen.svg)
+![Tests](https://img.shields.io/badge/tests-178%20passed-brightgreen.svg)
 
 ---
 
@@ -39,30 +39,61 @@ ClawClock 是一款专为 Linux 桌面设计的多功能时钟应用，支持模
 - **模块化架构**（v1.6.0+）：配置、特效、工具模块分离，易于维护和扩展
 - **统一错误处理**：6 种异常类覆盖所有错误场景
 - **结构化日志**：5 级日志系统，支持上下文追踪
-- **100% 测试覆盖**：146 个自动化测试用例，确保稳定性
+- **100% 测试覆盖**：178 个自动化测试用例，确保稳定性
 
 ---
 
 ## 📦 快速安装
 
-### 1. 安装依赖
+### 1. 克隆项目
 
 ```bash
-# Debian/Ubuntu
+git clone https://github.com/lyy3431/clawclock.git
+cd clawclock
+```
+
+### 2. 安装依赖
+
+**Linux (Debian/Ubuntu):**
+```bash
 sudo apt install python3-tk python3-tz
+```
 
-# Arch Linux
+**Linux (Arch):**
+```bash
 sudo pacman -S tk python-tz
+```
 
-# Fedora
+**Linux (Fedora):**
+```bash
 sudo dnf install python3-tkinter python3-dateutil
 ```
 
-### 2. 启动应用
-
+**macOS:**
 ```bash
-cd /home/lenovo/AItest/clawclock
+brew install python@3.10
+pip3 install -r requirements.txt
+```
+
+**Windows:**
+- 从 [python.org](https://python.org) 下载 Python 3.8+
+- 安装时勾选 "Add Python to PATH"
+- 运行 `install.bat` 或手动执行：
+```bash
+pip install -r requirements.txt
+```
+
+### 3. 启动应用
+
+**Linux/macOS:**
+```bash
 python3 clock.py
+```
+
+**Windows:**
+```bash
+python clock.py
+# 或双击 run.bat
 ```
 
 > 📖 **详细安装指南**：请参阅 [INSTALL.md](INSTALL.md) 获取完整安装步骤和故障排除方案。

@@ -152,7 +152,10 @@ class TimerState:
     preset_name: str = ""
 
 
-class ClockApp:
+from ui_components import UIMixin
+
+
+class ClockApp(UIMixin):
     """
     时钟应用主类
     
