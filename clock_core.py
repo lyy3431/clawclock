@@ -413,7 +413,7 @@ class ThemeMixin:
         except Exception:
             pass
 
-        # 2. 更新 main_frame 背景色（关键！）
+        # 6. 更新 main_frame 背景色（关键！）
         if hasattr(self, 'main_frame'):
             try:
                 self.main_frame.configure(bg=self.bg_color)
@@ -421,52 +421,60 @@ class ThemeMixin:
             except Exception:
                 pass
 
-        # 3. 更新 ttk 样式（关键！）
+        # 7. 更新 digital_frame 背景色（数字显示区）
+        if hasattr(self, 'digital_frame'):
+            try:
+                self.digital_frame.configure(bg=self.bg_color)
+                self.digital_frame["bg"] = self.bg_color
+            except Exception:
+                pass
+
+        # 8. 更新 ttk 样式（关键！）
         self._update_ttk_styles()
 
-        # 4. 强制刷新主窗口
+        # 9. 强制刷新主窗口
         self.root.update_idletasks()
 
-        # 5. 更新所有 Frame 的背景色
+        # 10. 更新所有 Frame 的背景色
         for widget in self.root.winfo_children():
             if isinstance(widget, tk.Frame):
                 widget.configure(bg=self.bg_color)
             self._update_widget_theme(widget)
 
-        # 6. 重绘时钟表盘
+        # 11. 重绘时钟表盘
         if hasattr(self, 'canvas'):
             self.canvas.config(bg=self.bg_color)
             self.draw_clock_face()
 
-        # 7. 重绘数字显示
+        # 12. 重绘数字显示
         if hasattr(self, 'seg_canvas'):
             self.seg_canvas.config(bg=self.bg_color)
             time_str = datetime.datetime.now().strftime("%H:%M:%S")
             self.draw_seven_segment_time(time_str)
 
-        # 8. 更新秒表显示颜色
+        # 13. 更新秒表显示颜色
         if hasattr(self, 'stopwatch_label'):
             self.stopwatch_label.config(bg=self.bg_color, fg=self.seg_color_on)
 
-        # 9. 更新倒计时显示颜色
+        # 14. 更新倒计时显示颜色
         if hasattr(self, 'timer_label'):
             self.timer_label.config(bg=self.bg_color, fg=self.text_color)
 
-        # 10. 更新日期标签
+        # 15. 更新日期标签
         if hasattr(self, 'date_label'):
             self.date_label.config(bg=self.bg_color, fg=self.text_color)
 
-        # 11. 更新 NTP 状态标签
+        # 16. 更新 NTP 状态标签
         if hasattr(self, 'ntp_status_label'):
             self.ntp_status_label.config(bg=self.bg_color, fg=self.text_color)
 
-        # 12. 更新所有按钮的背景色和前景色
+        # 17. 更新所有按钮的背景色和前景色
         self._update_all_button_colors()
 
-        # 13. 更新模式选择器 Radiobutton 颜色
+        # 18. 更新模式选择器 Radiobutton 颜色
         self._update_mode_selector_colors()
 
-        # 14. 强制刷新整个窗口（两次确保生效）
+        # 19. 强制刷新整个窗口（两次确保生效）
         self.root.after(50, lambda: self.root.update_idletasks())
         self.root.after(100, lambda: self.root.update_idletasks())
 
