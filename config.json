@@ -1,11 +1,4 @@
 {
-  "ntp": {
-    "enabled": true,
-    "auto_sync": true,
-    "sync_interval_hours": 24,
-    "server": "auto",
-    "show_status": true
-  },
   "alarms": [],
   "breath_light": {
     "accelerate_on_complete": true,
@@ -22,22 +15,20 @@
     "style": "soft"
   },
   "display_mode": "timer",
+  "ntp": {
+    "auto_sync": true,
+    "enabled": true,
+    "server": "auto",
+    "show_status": true,
+    "sync_interval_hours": 24
+  },
   "stopwatch": {
     "auto_save_laps": false,
     "laps": [],
     "show_milliseconds": true
   },
   "theme": {
-    "colors": {
-      "accent": "#d0d0d0",
-      "background": "#f8f8f8",
-      "face": "#e8e8e8",
-      "hand": "#0066cc",
-      "segment_off": "#b0b0b0",
-      "segment_on": "#0088ff",
-      "text": "#1a1a1a"
-    },
-    "name": "light"
+    "name": "green"
   },
   "timer": {
     "last_preset": "番茄钟",
@@ -45,7 +36,7 @@
     "sound_enabled": true,
     "total_duration": 0
   },
-  "timezone": "Asia/Bangkok",
+  "timezone": "Asia/Shanghai",
   "window": {
     "always_on_top": false,
     "fullscreen": false,
