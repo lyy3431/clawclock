@@ -48,6 +48,7 @@ from utils.performance import (
     performance_tracker, track_performance, measure_time,
     ClockPerformanceMonitor
 )
+from utils.ntp_client import NTPResult
 
 import tkinter as tk
 from tkinter import ttk
