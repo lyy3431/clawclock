@@ -33,10 +33,18 @@ class StopwatchMixin:
     def _update_stopwatch_display(self) -> None:
         """更新秒表显示"""
         if hasattr(self, 'stopwatch_time_var'):
-            current_time: float = time.time()
-            delta_ms: int = int((current_time - self.stopwatch.start_time) * 1000)
-            total_ms: int = self.stopwatch.elapsed_ms + delta_ms
-            self.stopwatch_time_var.set(self._format_time_ms(total_ms))
+            # 只在秒表运行时计算时间，否则显示 0
+            if self.stopwatch.is_running:
+                current_time: float = time.time()
+                delta_ms: int = int((current_time - self.stopwatch.start_time) * 1000)
+                total_ms: int = self.stopwatch.elapsed_ms + delta_ms
+                self.stopwatch_time_var.set(self._format_time_ms(total_ms))
+            else:
+                # 秒表未运行时显示已累积的时间（或 0）
+                # 确保 elapsed_ms 是有效的非负值
+                elapsed = max(0, self.stopwatch.elapsed_ms) if hasattr(self.stopwatch, 'elapsed_ms') else 0
+                self.stopwatch_time_var.set(self._format_time_ms(elapsed))
+            
             # 启动呼吸灯
             if not getattr(self, 'breath_job', None):
                 self._start_breath_effect()
