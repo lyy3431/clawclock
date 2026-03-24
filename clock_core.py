@@ -401,47 +401,141 @@ class ThemeMixin:
             self.root.after(0, self._refresh_theme_ui)
     
     def _refresh_theme_ui(self) -> None:
-        """刷新 UI 组件以应用新主题"""
+        """刷新 UI 组件以应用新主题 - 完整版本"""
         if not hasattr(self, 'root'):
             return
 
-        # 更新主窗口背景色
+        # 1. 更新主窗口背景色
         try:
             self.root.configure(bg=self.bg_color)
         except Exception:
             pass
 
-        # 强制刷新主窗口
+        # 2. 更新 ttk 样式（关键！）
+        self._update_ttk_styles()
+
+        # 3. 强制刷新主窗口
         self.root.update_idletasks()
 
-        # 更新所有 Frame 的背景色
+        # 4. 更新所有 Frame 的背景色
         for widget in self.root.winfo_children():
             self._update_widget_theme(widget)
 
-        # 重绘时钟表盘
+        # 5. 重绘时钟表盘
         if hasattr(self, 'canvas'):
             self.canvas.config(bg=self.bg_color)
             self.draw_clock_face()
 
-        # 重绘数字显示
+        # 6. 重绘数字显示
         if hasattr(self, 'seg_canvas'):
             self.seg_canvas.config(bg=self.bg_color)
             time_str = datetime.datetime.now().strftime("%H:%M:%S")
             self.draw_seven_segment_time(time_str)
 
-        # 更新秒表显示颜色
+        # 7. 更新秒表显示颜色
         if hasattr(self, 'stopwatch_label'):
-            self.stopwatch_label.config(fg=self.seg_color_on)
+            self.stopwatch_label.config(bg=self.bg_color, fg=self.seg_color_on)
 
-        # 更新倒计时显示颜色
+        # 8. 更新倒计时显示颜色
         if hasattr(self, 'timer_label'):
-            self.timer_label.config(fg=self.text_color)
+            self.timer_label.config(bg=self.bg_color, fg=self.text_color)
 
-        # 更新所有按钮的背景色和前景色
+        # 9. 更新日期标签
+        if hasattr(self, 'date_label'):
+            self.date_label.config(bg=self.bg_color, fg=self.text_color)
+
+        # 10. 更新 NTP 状态标签
+        if hasattr(self, 'ntp_status_label'):
+            self.ntp_status_label.config(bg=self.bg_color, fg=self.text_color)
+
+        # 11. 更新所有按钮的背景色和前景色
         self._update_all_button_colors()
 
-        # 强制刷新整个窗口
+        # 12. 更新模式选择器 Radiobutton 颜色
+        self._update_mode_selector_colors()
+
+        # 13. 强制刷新整个窗口
         self.root.after(100, lambda: self.root.update_idletasks())
+
+    def _update_ttk_styles(self) -> None:
+        """更新 ttk 组件的样式（Combobox 等）"""
+        try:
+            style = ttk.Style()
+            
+            # 定义要更新的 ttk 样式
+            ttk_styles = [
+                'TCombobox', 'TEntry', 'TFrame', 'TLabel', 'TButton',
+                'Horizontal.TScale', 'Vertical.TScale'
+            ]
+            
+            for style_name in ttk_styles:
+                try:
+                    if style_name == 'TCombobox':
+                        style.configure(style_name,
+                                       background=self.face_color,
+                                       foreground=self.text_color,
+                                       fieldbackground=self.face_color,
+                                       arrowcolor=self.text_color,
+                                       bordercolor=self.accent_color)
+                        # 修改下拉列表颜色
+                        style.map(style_name,
+                                 fieldbackground=[('readonly', self.face_color)],
+                                 selectbackground=[('readonly', self.accent_color)],
+                                 selectforeground=[('readonly', self.text_color)])
+                    
+                    elif style_name == 'TEntry':
+                        style.configure(style_name,
+                                       background=self.face_color,
+                                       foreground=self.text_color,
+                                       fieldbackground=self.face_color,
+                                       insertcolor=self.text_color)
+                    
+                    elif style_name == 'TFrame':
+                        style.configure(style_name, background=self.bg_color)
+                    
+                    elif style_name == 'TLabel':
+                        style.configure(style_name, background=self.bg_color,
+                                       foreground=self.text_color)
+                    
+                    elif style_name == 'TButton':
+                        style.configure(style_name,
+                                       background=self.accent_color,
+                                       foreground=self.text_color)
+                        style.map(style_name,
+                                 background=[('active', self.bg_color),
+                                            ('pressed', self.bg_color)])
+                    
+                    elif 'Scale' in style_name:
+                        style.configure(style_name,
+                                       background=self.bg_color,
+                                       troughcolor=self.face_color,
+                                       bordercolor=self.accent_color)
+                except Exception:
+                    pass  # 忽略不支持的样式选项
+        except Exception:
+            pass
+
+    def _update_mode_selector_colors(self) -> None:
+        """更新模式选择器 Radiobutton 的颜色"""
+        # 查找并更新所有 Radiobutton
+        if hasattr(self, 'root'):
+            for widget in self.root.winfo_children():
+                self._update_radiobutton_recursive(widget)
+
+    def _update_radiobutton_recursive(self, widget) -> None:
+        """递归更新 Radiobutton 颜色"""
+        try:
+            if isinstance(widget, tk.Radiobutton):
+                widget.config(bg=self.bg_color, fg=self.text_color,
+                             selectcolor=self.accent_color,
+                             activebackground=self.bg_color,
+                             activeforeground=self.text_color)
+            
+            if hasattr(widget, 'winfo_children'):
+                for child in widget.winfo_children():
+                    self._update_radiobutton_recursive(child)
+        except Exception:
+            pass
 
     def _update_widget_theme(self, widget) -> None:
         """递归更新组件主题"""
@@ -467,12 +561,6 @@ class ThemeMixin:
                              selectcolor=self.accent_color, activebackground=self.bg_color,
                              activeforeground=self.text_color)
 
-            # 更新 Radiobutton
-            elif isinstance(widget, tk.Radiobutton):
-                widget.config(bg=self.bg_color, fg=self.text_color,
-                             selectcolor=self.accent_color, activebackground=self.bg_color,
-                             activeforeground=self.text_color)
-
             # 更新 Listbox
             elif isinstance(widget, tk.Listbox):
                 widget.config(bg=self.face_color, fg=self.text_color,
@@ -486,17 +574,6 @@ class ThemeMixin:
             elif isinstance(widget, tk.Entry):
                 widget.config(bg=self.face_color, fg=self.text_color,
                              insertbackground=self.text_color)
-
-            # 更新 Combobox (ttk)
-            elif widget_type == 'Combobox':
-                # ttk 组件需要使用 style 来更新
-                style = ttk.Style()
-                style_name = widget.winfo_class()
-                try:
-                    style.configure(style_name, background=self.face_color,
-                                   foreground=self.text_color, fieldbackground=self.face_color)
-                except Exception:
-                    pass
 
             # 递归更新子组件
             for child in widget.winfo_children():
