@@ -429,6 +429,22 @@ class ThemeMixin:
             except Exception:
                 pass
 
+        # 7b. 更新 stopwatch_frame 背景色（秒表显示区）
+        if hasattr(self, 'stopwatch_frame'):
+            try:
+                self.stopwatch_frame.configure(bg=self.bg_color)
+                self.stopwatch_frame["bg"] = self.bg_color
+            except Exception:
+                pass
+
+        # 7c. 更新 timer_frame 背景色（倒计时显示区）
+        if hasattr(self, 'timer_frame'):
+            try:
+                self.timer_frame.configure(bg=self.bg_color)
+                self.timer_frame["bg"] = self.bg_color
+            except Exception:
+                pass
+
         # 8. 更新 ttk 样式（关键！）
         self._update_ttk_styles()
 
