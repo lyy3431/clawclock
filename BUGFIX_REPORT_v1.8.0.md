@@ -255,4 +255,138 @@ $ ./run_tests.sh
 ---
 
 **报告生成**: 2026-03-24  
-**修复完成**: ✅ 所有 4 个 bug 已修复并提交
+**修复完成**: ✅ 所有 5 个 bug 已修复并提交
+
+---
+
+## Bug #5: 主题切换不完整 🟠
+
+**优先级**: 中等
+
+### 问题现象
+- 主题切换后，只有数字和模拟钟的指针颜色变化
+- 窗口背景、边框、按钮等其他元素没有跟着变化
+- ttk 组件（如 Combobox）完全不响应主题变化
+
+### 根本原因
+1. **ttk 样式系统未更新**: ttk 组件（Combobox、Entry 等）使用独立的样式系统，不能通过 `configure()` 直接修改颜色
+2. **缺少完整刷新机制**: `_refresh_theme_ui()` 方法没有覆盖所有 UI 组件类型
+3. **Radiobutton 颜色未更新**: 模式选择器的 Radiobutton 颜色保持原样
+
+### 修复内容
+**文件**: `clock_core.py`
+
+#### 1. 新增 `_update_ttk_styles()` 方法
+
+```python
+def _update_ttk_styles(self) -> None:
+    """更新 ttk 组件的样式（Combobox 等）"""
+    style = ttk.Style()
+    
+    # 更新 TCombobox 样式
+    style.configure('TCombobox',
+                   background=self.face_color,
+                   foreground=self.text_color,
+                   fieldbackground=self.face_color,
+                   arrowcolor=self.text_color)
+    
+    # 更新 TEntry 样式
+    style.configure('TEntry',
+                   background=self.face_color,
+                   foreground=self.text_color,
+                   fieldbackground=self.face_color)
+    
+    # 更新 TFrame, TLabel, TButton 样式
+    style.configure('TFrame', background=self.bg_color)
+    style.configure('TLabel', background=self.bg_color, foreground=self.text_color)
+```
+
+#### 2. 增强 `_refresh_theme_ui()` 方法
+
+完整的 13 步刷新流程：
+1. 更新主窗口背景色
+2. **更新 ttk 样式**（新增）
+3. 强制刷新主窗口
+4. 更新所有 Frame 背景色
+5. 重绘时钟表盘
+6. 重绘数字显示
+7. 更新秒表显示颜色
+8. 更新倒计时显示颜色
+9. 更新日期标签
+10. 更新 NTP 状态标签
+11. 更新所有按钮颜色
+12. **更新模式选择器颜色**（新增）
+13. 强制刷新整个窗口
+
+#### 3. 新增 `_update_mode_selector_colors()` 方法
+
+```python
+def _update_mode_selector_colors(self) -> None:
+    """更新模式选择器 Radiobutton 的颜色"""
+    for widget in self.root.winfo_children():
+        self._update_radiobutton_recursive(widget)
+
+def _update_radiobutton_recursive(self, widget) -> None:
+    """递归更新 Radiobutton 颜色"""
+    if isinstance(widget, tk.Radiobutton):
+        widget.config(bg=self.bg_color, fg=self.text_color,
+                     selectcolor=self.accent_color)
+```
+
+#### 4. 简化 `_update_widget_theme()` 方法
+
+- 移除冗余的 ttk 处理代码（由 `_update_ttk_styles()` 统一处理）
+- 专注于标准 tkinter 组件（Frame、Label、Button、Canvas 等）
+
+### 主题切换流程对比
+
+**修复前**:
+```
+apply_theme() → 更新颜色变量 → 部分 UI 更新
+结果：只有指针和数字颜色变化
+```
+
+**修复后**:
+```
+apply_theme() → 更新颜色变量 → _update_ttk_styles() → 
+_refresh_theme_ui() → 13 步完整刷新 → 所有 UI 更新
+结果：整个窗口完全响应主题变化
+```
+
+### Git 提交
+```
+9415eac fix: 修复主题切换不完整问题 (Bug #5)
+```
+
+---
+
+## 修改文件清单（更新）
+
+| 文件 | 修改内容 | 行数变化 |
+|------|---------|---------|
+| `clock.py` | Bug #1, #3 修复 | +13, -6 |
+| `clock_events.py` | Bug #2 修复 | +18, -6 |
+| `clock_core.py` | Bug #4, #5 修复 | +135, -30 |
+| `clock_display.py` | Bug #4 修复 | +5 |
+
+---
+
+## 测试验证（更新）
+
+所有 5 个 bug 修复后，运行完整测试套件：
+
+```bash
+$ ./run_tests.sh
+
+============================= 248 passed in 4.43s ==============================
+✅ 所有测试通过！
+```
+
+### 手动测试清单
+
+- [x] 启动应用，验证默认显示模式正确
+- [x] 切换到秒表模式，验证显示 00:00:00.00
+- [x] 切换主题（Dark/Light/Green/Cyberpunk），验证所有 UI 元素颜色变化
+- [x] 验证窗口背景、边框、按钮、标签全部响应主题
+- [x] 验证 ttk Combobox 下拉列表颜色正确
+- [x] 验证模式选择器 Radiobutton 颜色正确
