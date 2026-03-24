@@ -9,7 +9,7 @@
     "text": "#ffffff",
     "accent": "#0f3460",
     "segment_on": "#ff4444",
-    "segment_off": "#2a1111"
+    "segment_off": "#252535"
   },
   "effects": {
     "glow_enabled": true,
