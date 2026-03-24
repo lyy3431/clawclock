@@ -200,20 +200,42 @@ class ClockApp(ClockCore, NTPMixin, ClockDisplayMixin, AlarmUIMixin, StopwatchMi
         if not hasattr(self, 'ntp_status_label') or self.ntp_status_label is None:
             return
 
-        status = self.get_ntp_status()
-        status_text = status.get("status", "NTP")
-        
-        # 根据状态设置颜色
-        if "精确" in status_text or status_text.startswith("✓"):
-            color = "#00d4aa"  # 绿色
-        elif "⚠" in status_text:
-            color = "#ffb347"  # 橙色
-        elif "✗" in status_text:
-            color = "#ff6b6b"  # 红色
+        # 优先使用传入的结果，否则从管理器获取状态
+        if result is not None and result.success:
+            # 使用传入的成功结果
+            offset = result.offset
+            if abs(offset) < 0.001:
+                status_text = "✓ 精确同步"
+                color = "#00d4aa"  # 绿色
+            elif abs(offset) < 0.1:
+                status_text = f"✓ 偏差 {offset:+.3f}秒"
+                color = "#00d4aa"
+            elif abs(offset) < 1.0:
+                status_text = f"⚠ 偏差 {offset:+.3f}秒"
+                color = "#ffb347"  # 橙色
+            else:
+                status_text = f"✗ 偏差 {offset:+.3f}秒"
+                color = "#ff6b6b"  # 红色
+            self.ntp_status_label.config(text=f"NTP: {status_text}", fg=color)
+        elif result is not None and not result.success:
+            # 同步失败
+            self.ntp_status_label.config(text=f"NTP: ✗ 同步失败", fg="#ff6b6b")
         else:
-            color = self.text_color
+            # 无结果，从管理器获取当前状态
+            status = self.get_ntp_status()
+            status_text = status.get("status", "未同步")
 
-        self.ntp_status_label.config(text=f"NTP: {status_text}", fg=color)
+            # 根据状态设置颜色
+            if "精确" in status_text or status_text.startswith("✓"):
+                color = "#00d4aa"  # 绿色
+            elif "⚠" in status_text:
+                color = "#ffb347"  # 橙色
+            elif "✗" in status_text:
+                color = "#ff6b6b"  # 红色
+            else:
+                color = self.text_color
+
+            self.ntp_status_label.config(text=f"NTP: {status_text}", fg=color)
 
     def _trigger_alarm(self, alarm: Alarm) -> None:
         """触发闹钟（实现 AlarmManagerMixin 的抽象方法）"""
