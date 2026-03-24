@@ -413,7 +413,7 @@ class ThemeMixin:
         except Exception:
             pass
 
-        # 6. 更新 main_frame 背景色（关键！）
+        # 2. 更新 main_frame 背景色（关键！）
         if hasattr(self, 'main_frame'):
             try:
                 self.main_frame.configure(bg=self.bg_color)
@@ -421,7 +421,7 @@ class ThemeMixin:
             except Exception:
                 pass
 
-        # 7. 更新 digital_frame 背景色（数字显示区）
+        # 3. 更新 digital_frame 背景色（数字显示区）
         if hasattr(self, 'digital_frame'):
             try:
                 self.digital_frame.configure(bg=self.bg_color)
@@ -429,7 +429,7 @@ class ThemeMixin:
             except Exception:
                 pass
 
-        # 7b. 更新 stopwatch_frame 背景色（秒表显示区）
+        # 4. 更新 stopwatch_frame 背景色（秒表显示区）
         if hasattr(self, 'stopwatch_frame'):
             try:
                 self.stopwatch_frame.configure(bg=self.bg_color)
@@ -437,7 +437,7 @@ class ThemeMixin:
             except Exception:
                 pass
 
-        # 7c. 更新 timer_frame 背景色（倒计时显示区）
+        # 5. 更新 timer_frame 背景色（倒计时显示区）
         if hasattr(self, 'timer_frame'):
             try:
                 self.timer_frame.configure(bg=self.bg_color)
@@ -445,50 +445,64 @@ class ThemeMixin:
             except Exception:
                 pass
 
-        # 8. 更新 ttk 样式（关键！）
+        # 6. 更新 ttk 样式（关键！）
         self._update_ttk_styles()
 
-        # 9. 强制刷新主窗口
+        # 7. 强制刷新主窗口
         self.root.update_idletasks()
 
-        # 10. 更新所有 Frame 的背景色
+        # 8. 更新所有 Frame 的背景色
         for widget in self.root.winfo_children():
-            if isinstance(widget, tk.Frame):
-                widget.configure(bg=self.bg_color)
             self._update_widget_theme(widget)
 
-        # 11. 重绘时钟表盘
+        # 9. 重绘时钟表盘
         if hasattr(self, 'canvas'):
             self.canvas.config(bg=self.bg_color)
             self.draw_clock_face()
 
-        # 12. 重绘数字显示
+        # 10. 重绘数字显示
         if hasattr(self, 'seg_canvas'):
             self.seg_canvas.config(bg=self.bg_color)
             time_str = datetime.datetime.now().strftime("%H:%M:%S")
             self.draw_seven_segment_time(time_str)
 
-        # 13. 更新秒表显示颜色
+        # 11. 更新秒表显示颜色
         if hasattr(self, 'stopwatch_label'):
             self.stopwatch_label.config(bg=self.bg_color, fg=self.seg_color_on)
 
-        # 14. 更新倒计时显示颜色
+        # 12. 更新倒计时显示颜色
         if hasattr(self, 'timer_label'):
             self.timer_label.config(bg=self.bg_color, fg=self.text_color)
 
-        # 15. 更新日期标签
+        # 13. 更新日期标签
         if hasattr(self, 'date_label'):
             self.date_label.config(bg=self.bg_color, fg=self.text_color)
 
-        # 16. 更新 NTP 状态标签
+        # 14. 更新 NTP 状态标签
         if hasattr(self, 'ntp_status_label'):
             self.ntp_status_label.config(bg=self.bg_color, fg=self.text_color)
 
-        # 17. 更新所有按钮的背景色和前景色
+        # 15. 更新所有按钮的背景色和前景色
         self._update_all_button_colors()
 
-        # 18. 更新模式选择器 Radiobutton 颜色
+        # 16. 更新模式选择器 Radiobutton 颜色
         self._update_mode_selector_colors()
+
+        # 17. 更新秒表计次列表背景色
+        if hasattr(self, 'lap_listbox'):
+            self.lap_listbox.config(bg=self.face_color, fg=self.text_color,
+                                   selectbackground=self.accent_color, selectforeground=self.text_color)
+
+        # 18. 更新倒计时输入框背景色
+        if hasattr(self, 'timer_hour_entry'):
+            self.timer_hour_entry.config(bg=self.face_color, fg=self.text_color,
+                                        insertbackground=self.text_color)
+        if hasattr(self, 'timer_min_entry'):
+            self.timer_min_entry.config(bg=self.face_color, fg=self.text_color,
+                                       insertbackground=self.text_color)
+        if hasattr(self, 'timer_sec_entry'):
+            self.timer_sec_entry.config(bg=self.face_color, fg=self.text_color,
+                                       insertbackground=self.text_color)
 
         # 19. 强制刷新整个窗口（两次确保生效）
         self.root.after(50, lambda: self.root.update_idletasks())
@@ -579,12 +593,16 @@ class ThemeMixin:
         try:
             widget_type = type(widget).__name__
 
-            # 更新 Frame
+            # 更新 Frame (包括 ttk.Frame)
             if isinstance(widget, tk.Frame):
                 widget.config(bg=self.bg_color)
+                # 递归更新 Frame 内的子组件
+                for child in widget.winfo_children():
+                    self._update_widget_theme(child)
+                return
 
             # 更新 Label
-            elif isinstance(widget, tk.Label):
+            if isinstance(widget, tk.Label):
                 widget.config(bg=self.bg_color, fg=self.text_color)
 
             # 更新 Button
@@ -594,6 +612,12 @@ class ThemeMixin:
 
             # 更新 Checkbutton
             elif isinstance(widget, tk.Checkbutton):
+                widget.config(bg=self.bg_color, fg=self.text_color,
+                             selectcolor=self.accent_color, activebackground=self.bg_color,
+                             activeforeground=self.text_color)
+
+            # 更新 Radiobutton
+            elif isinstance(widget, tk.Radiobutton):
                 widget.config(bg=self.bg_color, fg=self.text_color,
                              selectcolor=self.accent_color, activebackground=self.bg_color,
                              activeforeground=self.text_color)
@@ -612,9 +636,26 @@ class ThemeMixin:
                 widget.config(bg=self.face_color, fg=self.text_color,
                              insertbackground=self.text_color)
 
-            # 递归更新子组件
-            for child in widget.winfo_children():
-                self._update_widget_theme(child)
+            # 更新 Combobox
+            elif isinstance(widget, ttk.Combobox):
+                try:
+                    widget.configure(style='TCombobox')
+                except Exception:
+                    pass
+
+            # 更新 Scale (滑块)
+            elif isinstance(widget, ttk.Scale):
+                try:
+                    widget.configure(style='Horizontal.TScale' if str(widget.cget('orient')) == 'horizontal' else 'Vertical.TScale')
+                except Exception:
+                    pass
+
+            # 其他 ttk 组件使用样式更新
+            elif hasattr(widget, 'configure'):
+                try:
+                    widget.configure(style=widget.winfo_class())
+                except Exception:
+                    pass
         except Exception:
             pass
 
