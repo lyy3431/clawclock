@@ -298,9 +298,12 @@ class UIMixin:
 
     def setup_ui(self) -> None:
         """设置用户界面"""
-        # Main frame
+        # Main frame - 移除边距，让 Frame 填满整个窗口
         main_frame: tk.Frame = tk.Frame(self.root, bg=self.bg_color)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 保存 main_frame 引用以便主题切换时更新
+        self.main_frame = main_frame
 
         # 时区选择器
         self._setup_timezone_selector(main_frame)
