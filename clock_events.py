@@ -41,10 +41,18 @@ class StopwatchMixin:
                 self.stopwatch_time_var.set(self._format_time_ms(total_ms))
             else:
                 # 秒表未运行时显示已累积的时间（或 0）
-                # 确保 elapsed_ms 是有效的非负值
-                elapsed = max(0, self.stopwatch.elapsed_ms) if hasattr(self.stopwatch, 'elapsed_ms') else 0
+                # 确保 elapsed_ms 是有效的非负整数值
+                elapsed = 0
+                if hasattr(self.stopwatch, 'elapsed_ms') and self.stopwatch.elapsed_ms is not None:
+                    # 检查是否为异常值（例如超过 1000 年的毫秒数）
+                    max_reasonable_ms = 1000 * 365 * 24 * 60 * 60 * 1000  # 1000 年
+                    if 0 <= self.stopwatch.elapsed_ms <= max_reasonable_ms:
+                        elapsed = int(self.stopwatch.elapsed_ms)
+                    else:
+                        # 异常值，重置为 0
+                        self.stopwatch.elapsed_ms = 0
                 self.stopwatch_time_var.set(self._format_time_ms(elapsed))
-            
+
             # 启动呼吸灯
             if not getattr(self, 'breath_job', None):
                 self._start_breath_effect()
@@ -55,6 +63,8 @@ class StopwatchMixin:
 
     def _format_time_ms(self, ms: int) -> str:
         """格式化毫秒时间为显示字符串"""
+        # 确保 ms 是非负整数
+        ms = max(0, int(ms))
         total_seconds = ms // 1000
         minutes = total_seconds // 60
         seconds = total_seconds % 60

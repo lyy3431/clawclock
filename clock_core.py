@@ -241,6 +241,16 @@ class NTPMixin:
         # 启动时自动同步一次 (如果启用)
         if ntp_config.get("enabled", False):
             self.sync_time_ntp(background=True)
+        else:
+            # 即使 NTP 未启用，也尝试获取一次状态用于显示
+            # 这样用户可以看到 NTP 是否可用
+            if hasattr(self, 'root') and self.root:
+                self.root.after(500, self._init_ntp_status_check)
+    
+    def _init_ntp_status_check(self) -> None:
+        """初始化 NTP 状态检查（仅用于显示，不自动同步）"""
+        if hasattr(self, 'update_ntp_status_display'):
+            self.update_ntp_status_display()
 
     def sync_time_ntp(self, server: Optional[str] = None, 
                       background: bool = False) -> Optional[NTPResult]:
@@ -258,7 +268,8 @@ class NTPMixin:
 
         def do_sync() -> NTPResult:
             result = self.ntp_manager.sync_now(server)
-            if result.success and hasattr(self, 'update_ntp_status_display'):
+            # 无论成功还是失败，都更新状态显示
+            if hasattr(self, 'update_ntp_status_display'):
                 self.root.after(0, self.update_ntp_status_display, result)
             return result
 
@@ -379,6 +390,109 @@ class ThemeMixin:
         self.accent_color = colors.get("accent", "#0f3460")
         self.seg_color_on = colors.get("segment_on", "#ff3333")
         self.seg_color_off = colors.get("segment_off", "#331111")
+        
+        # 保存当前主题到配置
+        if hasattr(self, 'config'):
+            self.config["theme"] = {"name": theme_name}
+            self.save_config()
+        
+        # 刷新 UI 主题
+        if hasattr(self, 'root') and self.root:
+            self.root.after(0, self._refresh_theme_ui)
+    
+    def _refresh_theme_ui(self) -> None:
+        """刷新 UI 组件的主题颜色"""
+        # 更新主窗口背景
+        if hasattr(self, 'root'):
+            self.root.configure(bg=self.bg_color)
+        
+        # 更新所有 Frame 的背景色
+        if hasattr(self, 'root'):
+            for widget in self.root.winfo_children():
+                self._update_widget_theme(widget)
+        
+        # 重新绘制时钟表盘
+        if hasattr(self, 'canvas'):
+            self.draw_clock_face()
+        
+        # 重新绘制数字显示
+        if hasattr(self, 'seg_canvas'):
+            time_str = ""
+            if hasattr(self, 'stopwatch') and self.stopwatch and hasattr(self, 'mode_var'):
+                mode = getattr(self, 'mode_var', None)
+                if mode and mode.get() == 'stopwatch':
+                    time_str = self._format_time_ms(getattr(self.stopwatch, 'elapsed_ms', 0))
+                else:
+                    import datetime
+                    time_str = datetime.datetime.now().strftime("%H:%M:%S")
+            else:
+                import datetime
+                time_str = datetime.datetime.now().strftime("%H:%M:%S")
+            self.draw_seven_segment_time(time_str)
+        
+        # 更新按钮颜色
+        if hasattr(self, 'sw_start_btn'):
+            self.sw_start_btn.config(bg=self.accent_color, fg=self.text_color)
+        if hasattr(self, 'sw_stop_btn'):
+            self.sw_stop_btn.config(bg=self.accent_color, fg=self.text_color)
+        if hasattr(self, 'sw_lap_btn'):
+            self.sw_lap_btn.config(bg=self.accent_color, fg=self.text_color)
+        if hasattr(self, 'timer_start_btn'):
+            self.timer_start_btn.config(bg=self.accent_color, fg=self.text_color)
+        if hasattr(self, 'fullscreen_btn'):
+            self.fullscreen_btn.config(bg=self.accent_color, fg=self.text_color)
+        if hasattr(self, 'topmost_btn'):
+            self.topmost_btn.config(bg=self.accent_color, fg=self.text_color)
+        
+        # 更新秒表标签颜色
+        if hasattr(self, 'stopwatch_label'):
+            self.stopwatch_label.config(bg=self.bg_color, fg=self.seg_color_on)
+        
+        # 更新倒计时标签颜色
+        if hasattr(self, 'timer_label'):
+            self.timer_label.config(bg=self.bg_color, fg=self.text_color)
+        
+        # 更新日期标签
+        if hasattr(self, 'date_label'):
+            self.date_label.config(bg=self.bg_color, fg=self.text_color)
+        
+        # 更新 NTP 状态标签
+        if hasattr(self, 'ntp_status_label'):
+            self.ntp_status_label.config(bg=self.bg_color, fg=self.text_color)
+            # 重新更新 NTP 状态显示
+            if hasattr(self, 'update_ntp_status_display'):
+                self.update_ntp_status_display()
+    
+    def _update_widget_theme(self, widget) -> None:
+        """递归更新 widget 及其子 widget 的主题"""
+        try:
+            # 更新背景色
+            if hasattr(widget, 'configure'):
+                widget_class = widget.__class__.__name__
+                # Frame, Label 等需要更新背景
+                if widget_class in ('Frame', 'Label', 'TFrame', 'TLabel'):
+                    widget.configure(bg=self.bg_color)
+                elif widget_class in ('Button', 'TButton'):
+                    widget.configure(bg=self.accent_color, fg=self.text_color)
+                elif widget_class in ('Combobox', 'Entry'):
+                    widget.configure(bg=self.face_color, fg=self.text_color)
+                elif widget_class in ('Listbox',):
+                    widget.configure(bg=self.face_color, fg=self.text_color,
+                                    selectbackground=self.accent_color,
+                                    selectforeground=self.text_color)
+                elif widget_class in ('Checkbutton',):
+                    widget.configure(bg=self.bg_color, fg=self.text_color,
+                                    selectcolor=self.accent_color)
+                elif widget_class in ('Radiobutton',):
+                    widget.configure(bg=self.bg_color, fg=self.text_color,
+                                    selectcolor=self.accent_color)
+            
+            # 递归更新子 widget
+            if hasattr(widget, 'winfo_children'):
+                for child in widget.winfo_children():
+                    self._update_widget_theme(child)
+        except Exception:
+            pass  # 忽略更新失败的 widget
         
         # 保存主题配置
         if "theme" not in self.config:

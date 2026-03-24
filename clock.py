@@ -157,8 +157,10 @@ class ClockApp(ClockCore, NTPMixin, ClockDisplayMixin, AlarmUIMixin, StopwatchMi
 
         # 显示模式（确保是有效值，忽略秒表/倒计时模式作为启动模式）
         raw_mode: str = self.config.get("display_mode", "digital")
-        valid_modes = ["analog", "digital"]
-        self.display_mode: str = raw_mode if raw_mode in valid_modes else "digital"
+        valid_modes = ["analog", "digital", "stopwatch", "timer"]
+        # 启动时只使用 analog 或 digital 作为默认模式
+        startup_modes = ["analog", "digital"]
+        self.display_mode: str = raw_mode if raw_mode in startup_modes else "digital"
 
         # 应用主题
         self.apply_theme(theme_name)
