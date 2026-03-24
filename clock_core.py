@@ -379,6 +379,71 @@ class ThemeMixin:
         self.accent_color = colors.get("accent", "#0f3460")
         self.seg_color_on = colors.get("segment_on", "#ff3333")
         self.seg_color_off = colors.get("segment_off", "#331111")
+        
+        # 保存主题配置
+        if "theme" not in self.config:
+            self.config["theme"] = {}
+        self.config["theme"]["name"] = theme_name
+        
+        # 刷新 UI（如果已初始化）
+        self._refresh_theme_ui()
+
+    def _refresh_theme_ui(self) -> None:
+        """刷新 UI 组件以应用新主题"""
+        if not hasattr(self, 'root'):
+            return
+        
+        # 更新主窗口背景色
+        try:
+            self.root.configure(bg=self.bg_color)
+        except Exception:
+            pass
+        
+        # 更新所有 Frame 的背景色
+        for widget in self.root.winfo_children():
+            self._update_widget_theme(widget)
+        
+        # 重绘时钟表盘
+        if hasattr(self, 'canvas'):
+            self.draw_clock_face()
+        
+        # 重绘数字显示
+        if hasattr(self, 'seg_canvas'):
+            time_str = datetime.datetime.now().strftime("%H:%M:%S")
+            self.draw_seven_segment_time(time_str)
+        
+        # 更新秒表显示颜色
+        if hasattr(self, 'stopwatch_label'):
+            self.stopwatch_label.config(fg=self.seg_color_on)
+        
+        # 更新倒计时显示颜色
+        if hasattr(self, 'timer_label'):
+            self.timer_label.config(fg=self.text_color)
+
+    def _update_widget_theme(self, widget) -> None:
+        """递归更新组件主题"""
+        try:
+            # 更新背景色
+            if isinstance(widget, (tk.Frame, tk.Label, tk.Button, tk.Checkbutton)):
+                widget.config(bg=self.bg_color)
+                # 更新文字颜色
+                if isinstance(widget, (tk.Label, tk.Button, tk.Checkbutton)):
+                    widget.config(fg=self.text_color)
+            
+            # 更新 Listbox
+            if isinstance(widget, tk.Listbox):
+                widget.config(bg=self.face_color, fg=self.text_color,
+                             selectbackground=self.accent_color, selectforeground=self.text_color)
+            
+            # 更新 Canvas
+            if isinstance(widget, tk.Canvas):
+                widget.config(bg=self.bg_color)
+            
+            # 递归更新子组件
+            for child in widget.winfo_children():
+                self._update_widget_theme(child)
+        except Exception:
+            pass
 
 
 class AlarmManagerMixin:

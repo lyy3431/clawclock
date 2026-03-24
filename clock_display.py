@@ -411,6 +411,10 @@ class ClockDisplayMixin:
         selected = self.theme_combo.get()
         theme_name = self.theme_display_to_name.get(selected, "dark")
         self.apply_theme(theme_name)
+        # 更新主题选择器显示
+        if hasattr(self, 'theme_name_to_display'):
+            display_name = self.theme_name_to_display.get(theme_name, selected)
+            self.theme_combo.set(display_name)
 
     def update_mode(self) -> None:
         """切换显示模式"""
