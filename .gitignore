@@ -49,3 +49,6 @@ test_*.py
 
 # Configuration (optional)
 # config.json
+
+# NTP history (runtime file)
+ntp_history.json
