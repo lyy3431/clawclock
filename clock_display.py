@@ -86,6 +86,9 @@ class ClockDisplayMixin:
             self._last_minute = -1
             self._last_second = -1
             self._last_time_str = ""
+            self._last_hours = ""
+            self._last_minutes = ""
+            self._last_seconds = ""
             
         except Exception as e:
             print(f"⚠️  动画系统初始化失败：{e}")
