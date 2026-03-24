@@ -155,17 +155,22 @@ class ClockApp(ClockCore, NTPMixin, ClockDisplayMixin, AlarmUIMixin, StopwatchMi
         # 从配置加载主题名
         theme_name: str = self.config.get("theme", {}).get("name", "dark")
 
-        # 显示模式
-        self.display_mode: str = self.config.get("display_mode", "digital")
+        # 显示模式（确保是有效值，忽略秒表/倒计时模式作为启动模式）
+        raw_mode: str = self.config.get("display_mode", "digital")
+        valid_modes = ["analog", "digital"]
+        self.display_mode: str = raw_mode if raw_mode in valid_modes else "digital"
 
         # 应用主题
         self.apply_theme(theme_name)
 
+        # Setup UI (必须在 apply_theme 之后，以便使用正确的颜色)
+        self.setup_ui()
+
         # 初始化 NTP 时间同步
         self.init_ntp()
 
-        # Setup UI
-        self.setup_ui()
+        # 初始化显示模式（确保正确的模式显示）
+        self.update_mode()
 
         # 初始化动画系统
         self.init_animations()
@@ -179,8 +184,10 @@ class ClockApp(ClockCore, NTPMixin, ClockDisplayMixin, AlarmUIMixin, StopwatchMi
         # 启动闹钟检查线程
         self._check_alarms()
 
-        # NTP 状态显示标签
-        self.ntp_status_label: Optional[tk.Label] = None
+        # NTP 状态显示标签（在 setup_ui 中已创建）
+        # 延迟更新 NTP 状态显示
+        if getattr(self, 'ntp_available', False) and hasattr(self, 'update_ntp_status_display'):
+            self.root.after(1000, self.update_ntp_status_display)
 
     def update_ntp_status_display(self, result: Optional[NTPResult] = None) -> None:
         """更新 NTP 状态显示
