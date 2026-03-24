@@ -448,6 +448,9 @@ class ThemeMixin:
         # 6. 更新 ttk 样式（关键！）
         self._update_ttk_styles()
 
+        # 6b. 显式刷新 ttk 组件（关键修复！）
+        self._refresh_ttk_widgets()
+
         # 7. 强制刷新主窗口
         self.root.update_idletasks()
 
@@ -493,7 +496,7 @@ class ThemeMixin:
             self.lap_listbox.config(bg=self.face_color, fg=self.text_color,
                                    selectbackground=self.accent_color, selectforeground=self.text_color)
 
-        # 18. 更新倒计时输入框背景色
+        # 18. 更新倒计时输入框背景色（使用 face_color 作为 Entry 的背景）
         if hasattr(self, 'timer_hour_entry'):
             self.timer_hour_entry.config(bg=self.face_color, fg=self.text_color,
                                         insertbackground=self.text_color)
@@ -521,9 +524,12 @@ class ThemeMixin:
         self.root.after(100, lambda: self.root.update_idletasks())
 
     def _update_ttk_styles(self) -> None:
-        """更新 ttk 组件的样式（Combobox 等）"""
+        """更新 ttk 组件的样式（Combobox 等）- 完整修复版本"""
         try:
             style = ttk.Style()
+
+            # 关键：首先获取当前使用的 ttk theme，确保我们修改的是正确的主题
+            current_theme = style.theme_use()
 
             # 定义要更新的 ttk 样式
             ttk_styles = [
@@ -534,28 +540,62 @@ class ThemeMixin:
             for style_name in ttk_styles:
                 try:
                     if style_name == 'TCombobox':
+                        # 配置 Combobox 样式 - 完整配置
                         style.configure(style_name,
                                        background=self.bg_color,
                                        foreground=self.text_color,
-                                       fieldbackground=self.bg_color,
+                                       fieldbackground=self.face_color,
                                        arrowcolor=self.text_color,
                                        bordercolor=self.accent_color,
                                        selectbackground=self.accent_color,
-                                       selectforeground=self.text_color)
-                        # 修改下拉列表颜色
+                                       selectforeground=self.text_color,
+                                       lightcolor=self.bg_color,
+                                       darkcolor=self.accent_color,
+                                       focuscolor=self.bg_color,
+                                       troughcolor=self.bg_color)
+                        # 配置各种状态的样式 - 覆盖所有可能状态
                         style.map(style_name,
-                                 fieldbackground=[('readonly', self.bg_color), ('focus', self.bg_color)],
+                                 fieldbackground=[
+                                     ('readonly', self.face_color),
+                                     ('focus', self.face_color),
+                                     ('active', self.face_color),
+                                     ('disabled', self.bg_color),
+                                     ('!disabled', self.face_color)
+                                 ],
+                                 foreground=[
+                                     ('readonly', self.text_color),
+                                     ('focus', self.text_color),
+                                     ('disabled', self.text_color),
+                                     ('!disabled', self.text_color)
+                                 ],
                                  selectbackground=[('readonly', self.accent_color), ('focus', self.accent_color)],
                                  selectforeground=[('readonly', self.text_color), ('focus', self.text_color)])
 
                     elif style_name == 'TEntry':
                         style.configure(style_name,
-                                       background=self.bg_color,
+                                       background=self.face_color,
                                        foreground=self.text_color,
-                                       fieldbackground=self.bg_color,
-                                       insertcolor=self.text_color)
+                                       fieldbackground=self.face_color,
+                                       insertcolor=self.text_color,
+                                       lightcolor=self.face_color,
+                                       darkcolor=self.accent_color,
+                                       focuscolor=self.face_color,
+                                       troughcolor=self.face_color)
                         style.map(style_name,
-                                 fieldbackground=[('focus', self.bg_color), ('readonly', self.bg_color)])
+                                 fieldbackground=[
+                                     ('focus', self.face_color),
+                                     ('readonly', self.face_color),
+                                     ('disabled', self.bg_color),
+                                     ('active', self.face_color),
+                                     ('!disabled', self.face_color),
+                                     ('!focus', self.face_color)
+                                 ],
+                                 foreground=[
+                                     ('focus', self.text_color),
+                                     ('readonly', self.text_color),
+                                     ('disabled', self.text_color),
+                                     ('!disabled', self.text_color)
+                                 ])
 
                     elif style_name == 'TFrame':
                         style.configure(style_name, background=self.bg_color)
@@ -568,11 +608,26 @@ class ThemeMixin:
                         style.configure(style_name,
                                        background=self.accent_color,
                                        foreground=self.text_color,
-                                       bordercolor=self.accent_color)
+                                       bordercolor=self.accent_color,
+                                       focuscolor=self.accent_color,
+                                       lightcolor=self.accent_color,
+                                       darkcolor=self.bg_color)
                         style.map(style_name,
-                                 background=[('active', self.bg_color),
-                                            ('pressed', self.accent_color),
-                                            ('focus', self.bg_color)])
+                                 background=[
+                                     ('active', self.bg_color),
+                                     ('pressed', self.accent_color),
+                                     ('focus', self.bg_color),
+                                     ('disabled', self.bg_color),
+                                     ('!disabled', self.accent_color),
+                                     ('!active', self.accent_color)
+                                 ],
+                                 foreground=[
+                                     ('active', self.text_color),
+                                     ('pressed', self.text_color),
+                                     ('focus', self.text_color),
+                                     ('disabled', self.text_color),
+                                     ('!disabled', self.text_color)
+                                 ])
 
                     elif style_name == 'TRadiobutton':
                         style.configure(style_name,
@@ -581,8 +636,8 @@ class ThemeMixin:
                                        indicatorcolor=self.accent_color,
                                        focuscolor=self.accent_color)
                         style.map(style_name,
-                                 background=[('active', self.bg_color)],
-                                 foreground=[('active', self.text_color)])
+                                 background=[('active', self.bg_color), ('disabled', self.bg_color), ('!disabled', self.bg_color)],
+                                 foreground=[('active', self.text_color), ('disabled', self.text_color), ('!disabled', self.text_color)])
 
                     elif style_name == 'TCheckbutton':
                         style.configure(style_name,
@@ -591,8 +646,8 @@ class ThemeMixin:
                                        indicatorcolor=self.accent_color,
                                        focuscolor=self.accent_color)
                         style.map(style_name,
-                                 background=[('active', self.bg_color)],
-                                 foreground=[('active', self.text_color)])
+                                 background=[('active', self.bg_color), ('disabled', self.bg_color), ('!disabled', self.bg_color)],
+                                 foreground=[('active', self.text_color), ('disabled', self.text_color), ('!disabled', self.text_color)])
 
                     elif style_name == 'TListbox':
                         style.configure(style_name,
@@ -610,10 +665,74 @@ class ThemeMixin:
                                        sliderrelief='flat')
                         style.map(style_name,
                                  background=[('active', self.bg_color)])
-                except Exception:
+                except Exception as e:
                     pass  # 忽略不支持的样式选项
+        except Exception as e:
+            pass
+
+        # 额外配置：针对 clam 主题的特殊处理
+        try:
+            # 配置 Combobox 的布局元素颜色
+            style = ttk.Style()
+            # 获取 Combobox 的当前布局
+            combo_layout = style.layout('TCombobox')
+            if combo_layout:
+                # 配置 Combobox 内部元素
+                style.configure('Combobox.PopdownMenu',
+                               background=self.face_color,
+                               foreground=self.text_color)
         except Exception:
             pass
+
+    def _refresh_ttk_widgets(self) -> None:
+        """显式刷新所有 ttk 组件的颜色 - 关键修复方法"""
+        if not hasattr(self, 'root'):
+            return
+
+        # 显式刷新 Combobox
+        if hasattr(self, 'tz_combo'):
+            try:
+                # 通过重新设置值来强制刷新
+                current_value = self.tz_combo.get()
+                values = self.tz_combo.cget('values')
+                self.tz_combo.configure(values=values)
+                self.tz_combo.set(current_value)
+            except Exception:
+                pass
+
+        if hasattr(self, 'theme_combo'):
+            try:
+                current_value = self.theme_combo.get()
+                values = self.theme_combo.cget('values')
+                self.theme_combo.configure(values=values)
+                self.theme_combo.set(current_value)
+            except Exception:
+                pass
+
+        # 显式刷新 Entry 组件
+        if hasattr(self, 'timer_hour_entry'):
+            try:
+                value = self.timer_hour_entry.get()
+                self.timer_hour_entry.delete(0, tk.END)
+                self.timer_hour_entry.insert(0, value)
+            except Exception:
+                pass
+
+        if hasattr(self, 'timer_min_entry'):
+            try:
+                value = self.timer_min_entry.get()
+                self.timer_min_entry.delete(0, tk.END)
+                self.timer_min_entry.insert(0, value)
+            except Exception:
+                pass
+
+        if hasattr(self, 'timer_sec_entry'):
+            try:
+                value = self.timer_sec_entry.get()
+                self.timer_sec_entry.delete(0, tk.END)
+                self.timer_sec_entry.insert(0, value)
+            except Exception:
+                pass
 
     def _update_mode_selector_colors(self) -> None:
         """更新模式选择器 Radiobutton 的颜色"""
@@ -681,19 +800,22 @@ class ThemeMixin:
             elif isinstance(widget, tk.Canvas):
                 widget.config(bg=self.bg_color, highlightthickness=0)
 
-            # 更新 Entry (包括 ttk.Entry)
+            # 更新 Entry (包括 ttk.Entry) - 关键修复：显式设置背景色
             elif isinstance(widget, tk.Entry):
-                widget.config(bg=self.bg_color, fg=self.text_color,
+                widget.config(bg=self.face_color, fg=self.text_color,
                              insertbackground=self.text_color)
 
-            # 更新 Combobox (ttk.Combobox)
+            # 更新 Combobox (ttk.Combobox) - 关键修复：显式配置样式
             elif widget_class == 'TCombobox':
                 try:
+                    # 强制重新应用样式
                     widget.configure(style='TCombobox')
+                    # 显式设置颜色（确保生效）
+                    widget.configure(values=widget.cget('values'))  # 刷新显示
                 except Exception:
                     pass
 
-            # 更新 ttk.Entry
+            # 更新 ttk.Entry - 关键修复：显式设置背景色
             elif widget_class == 'TEntry':
                 try:
                     widget.configure(style='TEntry')
@@ -716,14 +838,14 @@ class ThemeMixin:
                 except Exception:
                     pass
 
-            # 更新 ttk.Button
+            # 更新 ttk.Button - 关键修复：显式配置样式
             elif widget_class == 'TButton':
                 try:
                     widget.configure(style='TButton')
                 except Exception:
                     pass
 
-            # 更新 ttk.Radiobutton
+            # 更新 ttk.Radiobutton - 关键修复：显式配置样式
             elif widget_class == 'TRadiobutton':
                 try:
                     widget.configure(style='TRadiobutton')
