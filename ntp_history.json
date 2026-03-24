@@ -1,0 +1,12 @@
+{
+  "history": [
+    {
+      "timestamp": "2026-03-24T17:01:04.460112",
+      "server": "pool.ntp.org",
+      "offset": 0.1,
+      "adjusted": false
+    }
+  ],
+  "auto_sync_enabled": false,
+  "auto_sync_interval": 24
+}

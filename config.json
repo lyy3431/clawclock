@@ -1,4 +1,11 @@
 {
+  "ntp": {
+    "enabled": true,
+    "auto_sync": true,
+    "sync_interval_hours": 24,
+    "server": "auto",
+    "show_status": true
+  },
   "alarms": [],
   "breath_light": {
     "accelerate_on_complete": true,

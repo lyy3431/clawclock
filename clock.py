@@ -35,7 +35,7 @@ __version_info__: Tuple[int, int, int] = (1, 6, 5)
 # ==================== 导入核心模块 ====================
 from clock_core import (
     get_version, Alarm, LapRecord, StopwatchState, TimerState,
-    ClockCore
+    ClockCore, NTPMixin
 )
 from clock_display import ClockDisplayMixin
 from clock_alarms import AlarmUIMixin
@@ -53,7 +53,7 @@ import sys
 from typing import Dict, List, Optional, Tuple, Any
 
 
-class ClockApp(ClockCore, ClockDisplayMixin, AlarmUIMixin, StopwatchMixin, TimerMixin, WindowEventMixin, UIMixin):
+class ClockApp(ClockCore, NTPMixin, ClockDisplayMixin, AlarmUIMixin, StopwatchMixin, TimerMixin, WindowEventMixin, UIMixin):
     """
     时钟应用主类
 
@@ -158,8 +158,14 @@ class ClockApp(ClockCore, ClockDisplayMixin, AlarmUIMixin, StopwatchMixin, Timer
         # 应用主题
         self.apply_theme(theme_name)
 
+        # 初始化 NTP 时间同步
+        self.init_ntp()
+
         # Setup UI
         self.setup_ui()
+
+        # 初始化动画系统
+        self.init_animations()
 
         # 加载倒计时配置
         self.load_timer_config()
@@ -169,6 +175,33 @@ class ClockApp(ClockCore, ClockDisplayMixin, AlarmUIMixin, StopwatchMixin, Timer
 
         # 启动闹钟检查线程
         self._check_alarms()
+
+        # NTP 状态显示标签
+        self.ntp_status_label: Optional[tk.Label] = None
+
+    def update_ntp_status_display(self, result: Optional[NTPResult] = None) -> None:
+        """更新 NTP 状态显示
+
+        Args:
+            result: NTP 同步结果，None 时从管理器获取状态
+        """
+        if not hasattr(self, 'ntp_status_label') or self.ntp_status_label is None:
+            return
+
+        status = self.get_ntp_status()
+        status_text = status.get("status", "NTP")
+        
+        # 根据状态设置颜色
+        if "精确" in status_text or status_text.startswith("✓"):
+            color = "#00d4aa"  # 绿色
+        elif "⚠" in status_text:
+            color = "#ffb347"  # 橙色
+        elif "✗" in status_text:
+            color = "#ff6b6b"  # 红色
+        else:
+            color = self.text_color
+
+        self.ntp_status_label.config(text=f"NTP: {status_text}", fg=color)
 
     def _trigger_alarm(self, alarm: Alarm) -> None:
         """触发闹钟（实现 AlarmManagerMixin 的抽象方法）"""

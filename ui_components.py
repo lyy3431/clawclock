@@ -134,6 +134,16 @@ class UIMixin:
                                                 bg=self.accent_color, fg=self.text_color)
         self.topmost_btn.pack(side=self.tk.LEFT, padx=5)
 
+        # NTP 状态标签 (如果 NTP 可用)
+        if getattr(self, 'ntp_available', False):
+            self.ntp_status_label = self.tk.Label(
+                btn_frame, text="NTP: 未同步",
+                font=("Arial", 10),
+                bg=self.bg_color,
+                fg=self.text_color
+            )
+            self.ntp_status_label.pack(side=self.tk.RIGHT, padx=10)
+
         self._update_button_states()
 
     def _setup_canvas(self, parent: tk.Frame) -> None:

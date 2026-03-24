@@ -19,12 +19,21 @@ import threading
 from typing import Dict, List, Optional, Tuple, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 
+# NTP 同步模块 (可选导入)
+try:
+    from utils.ntp_client import NTPSyncManager, NTPResult
+    NTP_AVAILABLE = True
+except ImportError:
+    NTP_AVAILABLE = False
+    NTPSyncManager = None  # type: ignore
+    NTPResult = None  # type: ignore
+
 if TYPE_CHECKING:
     from clock import ClockApp
 
 # ==================== 版本常量 ====================
-__version__ = "1.6.5"
-__version_info__: Tuple[int, int, int] = (1, 6, 5)
+__version__ = "1.8.0"
+__version_info__: Tuple[int, int, int] = (1, 8, 0)
 
 
 def get_version() -> str:
@@ -201,6 +210,141 @@ class ConfigMixin:
         except Exception as e:
             print(f"⚠️  保存配置文件失败：{e}")
             return False
+
+
+class NTPMixin:
+    """NTP 时间同步混入类"""
+
+    def init_ntp(self) -> None:
+        """初始化 NTP 同步管理器"""
+        if not NTP_AVAILABLE:
+            self.ntp_manager = None
+            self.ntp_available = False
+            return
+
+        self.ntp_available = True
+        self.ntp_manager = NTPSyncManager(
+            history_file=os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "ntp_history.json"
+            )
+        )
+        self.ntp_manager.load_history()
+        
+        # 从配置加载 NTP 设置
+        ntp_config = self.config.get("ntp", {})
+        if ntp_config.get("auto_sync", False):
+            self.ntp_manager.enable_auto_sync(
+                ntp_config.get("sync_interval_hours", 24)
+            )
+        
+        # 启动时自动同步一次 (如果启用)
+        if ntp_config.get("enabled", False):
+            self.sync_time_ntp(background=True)
+
+    def sync_time_ntp(self, server: Optional[str] = None, 
+                      background: bool = False) -> Optional[NTPResult]:
+        """执行 NTP 时间同步
+
+        Args:
+            server: NTP 服务器地址，默认自动选择
+            background: 是否在后台线程执行
+
+        Returns:
+            Optional[NTPResult]: 同步结果，后台执行时返回 None
+        """
+        if not self.ntp_available or not self.ntp_manager:
+            return None
+
+        def do_sync() -> NTPResult:
+            result = self.ntp_manager.sync_now(server)
+            if result.success and hasattr(self, 'update_ntp_status_display'):
+                self.root.after(0, self.update_ntp_status_display, result)
+            return result
+
+        if background:
+            thread = threading.Thread(target=do_sync, daemon=True)
+            thread.start()
+            return None
+        else:
+            return do_sync()
+
+    def get_ntp_status(self) -> Dict[str, Any]:
+        """获取 NTP 同步状态
+
+        Returns:
+            Dict[str, Any]: 状态信息
+        """
+        if not self.ntp_available or not self.ntp_manager:
+            return {
+                "available": False,
+                "enabled": False,
+                "status": "不可用"
+            }
+
+        status = self.ntp_manager.get_sync_status()
+        ntp_config = self.config.get("ntp", {})
+        
+        return {
+            "available": True,
+            "enabled": ntp_config.get("enabled", False),
+            "auto_sync": status.get("auto_sync_enabled", False),
+            "sync_interval": status.get("auto_sync_interval", 24),
+            "last_sync_time": status.get("last_sync_time"),
+            "last_sync_offset": status.get("last_sync_offset"),
+            "last_sync_server": status.get("last_sync_server"),
+            "total_sync_count": status.get("total_sync_count", 0),
+            "status": self._get_ntp_status_text(status)
+        }
+
+    def _get_ntp_status_text(self, status: Dict[str, Any]) -> str:
+        """获取 NTP 状态文本"""
+        if not status.get("last_sync_time"):
+            return "未同步"
+        
+        offset = status.get("last_sync_offset", 0)
+        if offset is None:
+            return "未同步"
+        
+        if abs(offset) < 0.001:
+            return "✓ 精确同步"
+        elif abs(offset) < 0.1:
+            return f"✓ 偏差 {offset:+.3f}秒"
+        elif abs(offset) < 1.0:
+            return f"⚠ 偏差 {offset:+.3f}秒"
+        else:
+            return f"✗ 偏差 {offset:+.3f}秒"
+
+    def set_ntp_enabled(self, enabled: bool) -> None:
+        """设置 NTP 同步启用状态"""
+        if not self.ntp_available:
+            return
+        
+        if "ntp" not in self.config:
+            self.config["ntp"] = {}
+        
+        self.config["ntp"]["enabled"] = enabled
+        self.save_config()
+        
+        if enabled and self.ntp_manager:
+            self.sync_time_ntp(background=True)
+
+    def set_ntp_auto_sync(self, enabled: bool, interval_hours: int = 24) -> None:
+        """设置自动同步"""
+        if not self.ntp_available or not self.ntp_manager:
+            return
+        
+        if "ntp" not in self.config:
+            self.config["ntp"] = {}
+        
+        self.config["ntp"]["auto_sync"] = enabled
+        self.config["ntp"]["sync_interval_hours"] = interval_hours
+        self.save_config()
+        
+        if enabled:
+            self.ntp_manager.enable_auto_sync(interval_hours)
+        else:
+            self.ntp_manager.disable_auto_sync()
 
 
 class ThemeMixin:

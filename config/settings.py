@@ -47,6 +47,23 @@ class ConfigManager:
                 "intensity": 0.5,
                 "accelerate_on_complete": True,
                 "smooth_curve": True
+            },
+            "ntp": {
+                "enabled": False,
+                "auto_sync": False,
+                "sync_interval_hours": 24,
+                "server": "auto",
+                "show_status": True
+            },
+            "animations": {
+                "hour_chime_enabled": True,
+                "hour_chime_volume": 0.5,
+                "mode_transition_enabled": True,
+                "mode_transition_duration": 0.4,
+                "theme_transition_enabled": True,
+                "theme_transition_duration": 0.4,
+                "smooth_second_hand": True,
+                "digit_flip_enabled": True
             }
         }
 

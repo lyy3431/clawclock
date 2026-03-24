@@ -8,6 +8,7 @@ ClawClock - 显示渲染模块
 - 数字时钟绘制（7 段数码管）
 - 模式切换
 - 时区/主题事件处理
+- 动画效果渲染
 """
 
 import math
@@ -18,6 +19,23 @@ if TYPE_CHECKING:
     from clock import ClockApp
 
 import tkinter as tk
+
+# 动画模块（可选导入）
+try:
+    from effects.enhanced_animations import (
+        HourChimeAnimation, ModeTransitionAnimation,
+        ThemeTransitionAnimation, SmoothSecondHandAnimation,
+        DigitFlipAnimation, AnimationConfig
+    )
+    ANIMATION_AVAILABLE = True
+except ImportError:
+    ANIMATION_AVAILABLE = False
+    HourChimeAnimation = None  # type: ignore
+    ModeTransitionAnimation = None  # type: ignore
+    ThemeTransitionAnimation = None  # type: ignore
+    SmoothSecondHandAnimation = None  # type: ignore
+    DigitFlipAnimation = None  # type: ignore
+    AnimationConfig = None  # type: ignore
 
 
 class ClockDisplayMixin:
@@ -31,6 +49,125 @@ class ClockDisplayMixin:
     seg_thickness: int = 8
     # 数字间距（像素）
     digit_spacing: int = 15
+
+    def init_animations(self) -> None:
+        """初始化动画系统"""
+        if not ANIMATION_AVAILABLE:
+            self.animations_enabled = False
+            return
+        
+        self.animations_enabled = True
+        
+        # 加载动画配置
+        anim_config = self.config.get("animations", {})
+        self.animation_config = AnimationConfig.from_dict(anim_config) if AnimationConfig else {}
+        
+        # 初始化各种动画
+        try:
+            # 整点报时动画
+            self.hour_chime = HourChimeAnimation(self.canvas, 150, 150)
+            
+            # 模式切换动画
+            self.mode_transition = ModeTransitionAnimation(self.canvas, 600, 500)
+            
+            # 主题切换动画
+            self.theme_transition = ThemeTransitionAnimation(self.canvas, 600, 500)
+            
+            # 秒针平滑动画
+            self.smooth_second = SmoothSecondHandAnimation()
+            
+            # 数字翻页动画
+            self.digit_flip = DigitFlipAnimation(
+                self.seg_canvas, 100, 15, 60, 100
+            )
+            
+            # 上次时间记录（用于检测整点和数字变化）
+            self._last_hour = -1
+            self._last_minute = -1
+            self._last_second = -1
+            self._last_time_str = ""
+            
+        except Exception as e:
+            print(f"⚠️  动画系统初始化失败：{e}")
+            self.animations_enabled = False
+
+    def update_animations(self) -> None:
+        """更新所有动画状态"""
+        if not self.animations_enabled:
+            return
+        
+        # 更新整点报时
+        if hasattr(self, 'hour_chime'):
+            self.hour_chime.update()
+        
+        # 更新模式切换
+        if hasattr(self, 'mode_transition'):
+            self.mode_transition.update()
+        
+        # 更新主题切换
+        if hasattr(self, 'theme_transition'):
+            self.theme_transition.update()
+        
+        # 更新秒针平滑
+        if hasattr(self, 'smooth_second'):
+            self.smooth_second.update()
+        
+        # 更新数字翻页
+        if hasattr(self, 'digit_flip'):
+            self.digit_flip.update()
+
+    def check_hour_chime(self, now: datetime.datetime) -> None:
+        """检查是否触发整点报时"""
+        if not self.animations_enabled or not hasattr(self, 'hour_chime'):
+            return
+        
+        if not self.animation_config.hour_chime_enabled:
+            return
+        
+        # 检测整点
+        if now.hour != self._last_hour and now.minute == 0:
+            self.hour_chime.trigger(now.hour)
+            self._last_hour = now.hour
+
+    def update_smooth_second_hand(self, now: datetime.datetime) -> float:
+        """更新秒针平滑位置"""
+        if not self.animations_enabled or not hasattr(self, 'smooth_second'):
+            return now.second * 6
+        
+        # 设置目标位置
+        self.smooth_second.set_target(now.second, include_milliseconds=True)
+        
+        # 更新并返回角度
+        return self.smooth_second.update()
+
+    def update_digit_flip(self, time_str: str) -> None:
+        """更新数字翻页动画"""
+        if not self.animations_enabled or not hasattr(self, 'digit_flip'):
+            return
+        
+        if not self.animation_config.digit_flip_enabled:
+            return
+        
+        # 检测每位数字变化
+        if len(time_str) >= 8:  # HH:MM:SS 格式
+            hours = time_str[:2]
+            minutes = time_str[3:5]
+            seconds = time_str[6:8]
+            
+            # 检测小时变化
+            if hours != getattr(self, '_last_hours', ""):
+                for i, (h1, h2) in enumerate(zip(self._last_hours, hours)):
+                    if h1 != h2:
+                        self.digit_flip.flip_digit(h1, h2)
+                self._last_hours = hours
+            
+            # 检测分钟变化
+            if minutes != getattr(self, '_last_minutes', ""):
+                self._last_minutes = minutes
+            
+            # 检测秒钟变化
+            if seconds != getattr(self, '_last_seconds', ""):
+                self._last_seconds = seconds
 
     def draw_clock_face(self) -> None:
         """绘制时钟表盘"""
@@ -171,18 +308,38 @@ class ClockDisplayMixin:
         if hasattr(self, 'perf_monitor') and self.perf_monitor:
             self.perf_monitor.start_frame()
 
+        # 更新动画状态
+        self.update_animations()
+
+        # 检查整点报时
+        self.check_hour_chime(now)
+
+        # 更新秒针平滑位置
+        smooth_second_angle = self.update_smooth_second_hand(now)
+
+        # 获取时间字符串用于数字显示
+        time_str: str = now.strftime("%H:%M:%S")
+        
+        # 更新数字翻页动画
+        self.update_digit_flip(time_str)
+
         # Update analog clock
         if self.mode_var.get() == "analog":
-            self.draw_analog_clock(hour, minute, second)
+            self.draw_analog_clock(hour, minute, second, smooth_second_angle)
 
         # Update digital clock
         if self.mode_var.get() == "digital":
-            time_str: str = now.strftime("%H:%M:%S")
             self.draw_seven_segment_time(time_str)
             date_str: str = now.strftime("%Y-%m-%d %A")
             tz_info: Optional[Tuple[str, str, str]] = next((tz for tz in self.timezones if tz[1] == self.timezone), None)
             tz_display: str = f"{tz_info[0]} {tz_info[2]}" if tz_info else self.timezone
             self.date_label.config(text=f"{date_str}\n{tz_display}")
+
+        # 更新 NTP 状态（如果有）
+        if hasattr(self, 'ntp_status_label') and self.ntp_status_label:
+            # 每 5 秒更新一次 NTP 状态显示
+            if second % 5 == 0 and hasattr(self, 'update_ntp_status_display'):
+                self.root.after(0, self.update_ntp_status_display)
 
         # 性能监控：帧结束
         if hasattr(self, 'perf_monitor') and self.perf_monitor:
@@ -191,15 +348,25 @@ class ClockDisplayMixin:
         # Schedule next update
         self.root.after(50, self.update_clock)
 
-    def draw_analog_clock(self, hour: int, minute: int, second: int) -> None:
-        """绘制模拟时钟"""
+    def draw_analog_clock(self, hour: int, minute: int, second: int, 
+                          smooth_second_angle: Optional[float] = None) -> None:
+        """绘制模拟时钟
+        
+        Args:
+            hour: 小时
+            minute: 分钟
+            second: 秒钟
+            smooth_second_angle: 平滑秒针角度（可选）
+        """
         cx, cy, r = 150, 150, 130
 
         # Clear previous hands
         self.canvas.delete("hands")
 
-        # Second hand
-        sec_angle = math.radians(second * 6 - 90)
+        # Second hand (使用平滑角度或传统角度)
+        sec_angle = math.radians(
+            (smooth_second_angle if smooth_second_angle is not None else second * 6) - 90
+        )
         sec_len = r - 20
         x2 = cx + sec_len * math.cos(sec_angle)
         y2 = cy + sec_len * math.sin(sec_angle)
@@ -218,6 +385,10 @@ class ClockDisplayMixin:
         x2 = cx + hour_len * math.cos(hour_angle)
         y2 = cy + hour_len * math.sin(hour_angle)
         self.canvas.create_line(cx, cy, x2, y2, fill=self.hand_color, width=6, tags="hands")
+        
+        # 绘制整点报时效果（如果有）
+        if hasattr(self, 'hour_chime') and self.hour_chime.is_active():
+            self.hour_chime.draw(r)
 
     def on_timezone_change(self, event: tk.Event) -> None:
         """时区切换事件处理"""

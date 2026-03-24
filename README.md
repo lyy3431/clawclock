@@ -6,8 +6,8 @@ ClawClock 是一款专为 Linux 桌面设计的多功能时钟应用，支持模
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
 ![Tkinter](https://img.shields.io/badge/tkinter-builtin-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
-![Version](https://img.shields.io/badge/version-1.6.0-orange.svg)
-![Tests](https://img.shields.io/badge/tests-178%20passed-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-1.8.0-orange.svg)
+![Tests](https://img.shields.io/badge/tests-248%20passed-brightgreen.svg)
 
 ---
 
@@ -39,7 +39,9 @@ ClawClock 是一款专为 Linux 桌面设计的多功能时钟应用，支持模
 - **模块化架构**（v1.6.0+）：配置、特效、工具模块分离，易于维护和扩展
 - **统一错误处理**：6 种异常类覆盖所有错误场景
 - **结构化日志**：5 级日志系统，支持上下文追踪
-- **100% 测试覆盖**：178 个自动化测试用例，确保稳定性
+- **NTP 时间同步**（v1.7.0+）：网络时间自动校准，毫秒级精度
+- **动画效果增强**（v1.8.0+）：整点报时、平滑秒针、数字翻页、模式过渡
+- **100% 测试覆盖**：248 个自动化测试用例，确保稳定性
 
 ---
 
