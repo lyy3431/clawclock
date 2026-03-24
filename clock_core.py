@@ -504,7 +504,19 @@ class ThemeMixin:
             self.timer_sec_entry.config(bg=self.face_color, fg=self.text_color,
                                        insertbackground=self.text_color)
 
-        # 19. 强制刷新整个窗口（两次确保生效）
+        # 20. 更新时区和主题选择器 Combobox
+        if hasattr(self, 'tz_combo'):
+            try:
+                self.tz_combo.configure(style='TCombobox')
+            except Exception:
+                pass
+        if hasattr(self, 'theme_combo'):
+            try:
+                self.theme_combo.configure(style='TCombobox')
+            except Exception:
+                pass
+
+        # 21. 强制刷新整个窗口（两次确保生效）
         self.root.after(50, lambda: self.root.update_idletasks())
         self.root.after(100, lambda: self.root.update_idletasks())
 
@@ -512,55 +524,92 @@ class ThemeMixin:
         """更新 ttk 组件的样式（Combobox 等）"""
         try:
             style = ttk.Style()
-            
+
             # 定义要更新的 ttk 样式
             ttk_styles = [
                 'TCombobox', 'TEntry', 'TFrame', 'TLabel', 'TButton',
-                'Horizontal.TScale', 'Vertical.TScale'
+                'Horizontal.TScale', 'Vertical.TScale', 'TRadiobutton', 'TCheckbutton', 'TListbox'
             ]
-            
+
             for style_name in ttk_styles:
                 try:
                     if style_name == 'TCombobox':
                         style.configure(style_name,
-                                       background=self.face_color,
+                                       background=self.bg_color,
                                        foreground=self.text_color,
-                                       fieldbackground=self.face_color,
+                                       fieldbackground=self.bg_color,
                                        arrowcolor=self.text_color,
-                                       bordercolor=self.accent_color)
+                                       bordercolor=self.accent_color,
+                                       selectbackground=self.accent_color,
+                                       selectforeground=self.text_color)
                         # 修改下拉列表颜色
                         style.map(style_name,
-                                 fieldbackground=[('readonly', self.face_color)],
-                                 selectbackground=[('readonly', self.accent_color)],
-                                 selectforeground=[('readonly', self.text_color)])
-                    
+                                 fieldbackground=[('readonly', self.bg_color), ('focus', self.bg_color)],
+                                 selectbackground=[('readonly', self.accent_color), ('focus', self.accent_color)],
+                                 selectforeground=[('readonly', self.text_color), ('focus', self.text_color)])
+
                     elif style_name == 'TEntry':
                         style.configure(style_name,
-                                       background=self.face_color,
+                                       background=self.bg_color,
                                        foreground=self.text_color,
-                                       fieldbackground=self.face_color,
+                                       fieldbackground=self.bg_color,
                                        insertcolor=self.text_color)
-                    
+                        style.map(style_name,
+                                 fieldbackground=[('focus', self.bg_color), ('readonly', self.bg_color)])
+
                     elif style_name == 'TFrame':
                         style.configure(style_name, background=self.bg_color)
-                    
+
                     elif style_name == 'TLabel':
                         style.configure(style_name, background=self.bg_color,
                                        foreground=self.text_color)
-                    
+
                     elif style_name == 'TButton':
                         style.configure(style_name,
                                        background=self.accent_color,
-                                       foreground=self.text_color)
+                                       foreground=self.text_color,
+                                       bordercolor=self.accent_color)
                         style.map(style_name,
                                  background=[('active', self.bg_color),
-                                            ('pressed', self.bg_color)])
-                    
+                                            ('pressed', self.accent_color),
+                                            ('focus', self.bg_color)])
+
+                    elif style_name == 'TRadiobutton':
+                        style.configure(style_name,
+                                       background=self.bg_color,
+                                       foreground=self.text_color,
+                                       indicatorcolor=self.accent_color,
+                                       focuscolor=self.accent_color)
+                        style.map(style_name,
+                                 background=[('active', self.bg_color)],
+                                 foreground=[('active', self.text_color)])
+
+                    elif style_name == 'TCheckbutton':
+                        style.configure(style_name,
+                                       background=self.bg_color,
+                                       foreground=self.text_color,
+                                       indicatorcolor=self.accent_color,
+                                       focuscolor=self.accent_color)
+                        style.map(style_name,
+                                 background=[('active', self.bg_color)],
+                                 foreground=[('active', self.text_color)])
+
+                    elif style_name == 'TListbox':
+                        style.configure(style_name,
+                                       background=self.face_color,
+                                       foreground=self.text_color,
+                                       fieldbackground=self.face_color,
+                                       selectbackground=self.accent_color,
+                                       selectforeground=self.text_color)
+
                     elif 'Scale' in style_name:
                         style.configure(style_name,
                                        background=self.bg_color,
                                        troughcolor=self.face_color,
-                                       bordercolor=self.accent_color)
+                                       bordercolor=self.accent_color,
+                                       sliderrelief='flat')
+                        style.map(style_name,
+                                 background=[('active', self.bg_color)])
                 except Exception:
                     pass  # 忽略不支持的样式选项
         except Exception:
@@ -589,9 +638,10 @@ class ThemeMixin:
             pass
 
     def _update_widget_theme(self, widget) -> None:
-        """递归更新组件主题"""
+        """递归更新组件主题 - 完整版本支持所有控件类型"""
         try:
             widget_type = type(widget).__name__
+            widget_class = widget.winfo_class()
 
             # 更新 Frame (包括 ttk.Frame)
             if isinstance(widget, tk.Frame):
@@ -601,22 +651,22 @@ class ThemeMixin:
                     self._update_widget_theme(child)
                 return
 
-            # 更新 Label
+            # 更新 Label (包括 ttk.Label)
             if isinstance(widget, tk.Label):
                 widget.config(bg=self.bg_color, fg=self.text_color)
 
-            # 更新 Button
+            # 更新 Button (包括 ttk.Button)
             elif isinstance(widget, tk.Button):
                 widget.config(bg=self.accent_color, fg=self.text_color,
                              activebackground=self.bg_color, activeforeground=self.text_color)
 
-            # 更新 Checkbutton
+            # 更新 Checkbutton (包括 ttk.Checkbutton)
             elif isinstance(widget, tk.Checkbutton):
                 widget.config(bg=self.bg_color, fg=self.text_color,
                              selectcolor=self.accent_color, activebackground=self.bg_color,
                              activeforeground=self.text_color)
 
-            # 更新 Radiobutton
+            # 更新 Radiobutton (包括 ttk.Radiobutton)
             elif isinstance(widget, tk.Radiobutton):
                 widget.config(bg=self.bg_color, fg=self.text_color,
                              selectcolor=self.accent_color, activebackground=self.bg_color,
@@ -631,29 +681,73 @@ class ThemeMixin:
             elif isinstance(widget, tk.Canvas):
                 widget.config(bg=self.bg_color, highlightthickness=0)
 
-            # 更新 Entry
+            # 更新 Entry (包括 ttk.Entry)
             elif isinstance(widget, tk.Entry):
-                widget.config(bg=self.face_color, fg=self.text_color,
+                widget.config(bg=self.bg_color, fg=self.text_color,
                              insertbackground=self.text_color)
 
-            # 更新 Combobox
-            elif isinstance(widget, ttk.Combobox):
+            # 更新 Combobox (ttk.Combobox)
+            elif widget_class == 'TCombobox':
                 try:
                     widget.configure(style='TCombobox')
+                except Exception:
+                    pass
+
+            # 更新 ttk.Entry
+            elif widget_class == 'TEntry':
+                try:
+                    widget.configure(style='TEntry')
                 except Exception:
                     pass
 
             # 更新 Scale (滑块)
             elif isinstance(widget, ttk.Scale):
                 try:
-                    widget.configure(style='Horizontal.TScale' if str(widget.cget('orient')) == 'horizontal' else 'Vertical.TScale')
+                    orient = str(widget.cget('orient'))
+                    style_name = 'Horizontal.TScale' if orient == 'horizontal' else 'Vertical.TScale'
+                    widget.configure(style=style_name)
+                except Exception:
+                    pass
+
+            # 更新 ttk.Label
+            elif widget_class == 'TLabel':
+                try:
+                    widget.configure(style='TLabel')
+                except Exception:
+                    pass
+
+            # 更新 ttk.Button
+            elif widget_class == 'TButton':
+                try:
+                    widget.configure(style='TButton')
+                except Exception:
+                    pass
+
+            # 更新 ttk.Radiobutton
+            elif widget_class == 'TRadiobutton':
+                try:
+                    widget.configure(style='TRadiobutton')
+                except Exception:
+                    pass
+
+            # 更新 ttk.Checkbutton
+            elif widget_class == 'TCheckbutton':
+                try:
+                    widget.configure(style='TCheckbutton')
+                except Exception:
+                    pass
+
+            # 更新 ttk.Frame
+            elif widget_class == 'TFrame':
+                try:
+                    widget.configure(style='TFrame')
                 except Exception:
                     pass
 
             # 其他 ttk 组件使用样式更新
-            elif hasattr(widget, 'configure'):
+            elif hasattr(widget, 'configure') and widget_class.startswith('T'):
                 try:
-                    widget.configure(style=widget.winfo_class())
+                    widget.configure(style=widget_class)
                 except Exception:
                     pass
         except Exception:
