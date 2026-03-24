@@ -28,9 +28,12 @@ ClawClock - 图形化时钟应用主入口
 版本：1.6.5
 """
 
+# ==================== 导入类型注解 ====================
+from typing import Dict, List, Optional, Tuple, Any
+
 # ==================== 版本常量 ====================
-__version__ = "1.6.5"
-__version_info__: Tuple[int, int, int] = (1, 6, 5)
+__version__ = "1.8.0"
+__version_info__: Tuple[int, int, int] = (1, 8, 0)
 
 # ==================== 导入核心模块 ====================
 from clock_core import (
@@ -50,7 +53,6 @@ import tkinter as tk
 from tkinter import ttk
 import datetime
 import sys
-from typing import Dict, List, Optional, Tuple, Any
 
 
 class ClockApp(ClockCore, NTPMixin, ClockDisplayMixin, AlarmUIMixin, StopwatchMixin, TimerMixin, WindowEventMixin, UIMixin):
