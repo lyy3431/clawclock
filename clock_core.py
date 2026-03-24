@@ -405,9 +405,11 @@ class ThemeMixin:
         if not hasattr(self, 'root'):
             return
 
-        # 1. 更新主窗口背景色
+        # 1. 更新主窗口背景色（最关键！）
         try:
             self.root.configure(bg=self.bg_color)
+            # 确保窗口背景色生效
+            self.root["bg"] = self.bg_color
         except Exception:
             pass
 
@@ -417,8 +419,10 @@ class ThemeMixin:
         # 3. 强制刷新主窗口
         self.root.update_idletasks()
 
-        # 4. 更新所有 Frame 的背景色
+        # 4. 更新所有 Frame 的背景色（包括 main_frame）
         for widget in self.root.winfo_children():
+            if isinstance(widget, tk.Frame):
+                widget.configure(bg=self.bg_color)
             self._update_widget_theme(widget)
 
         # 5. 重绘时钟表盘
@@ -454,7 +458,8 @@ class ThemeMixin:
         # 12. 更新模式选择器 Radiobutton 颜色
         self._update_mode_selector_colors()
 
-        # 13. 强制刷新整个窗口
+        # 13. 强制刷新整个窗口（两次确保生效）
+        self.root.after(50, lambda: self.root.update_idletasks())
         self.root.after(100, lambda: self.root.update_idletasks())
 
     def _update_ttk_styles(self) -> None:
