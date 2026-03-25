@@ -19,6 +19,10 @@ import threading
 from typing import Dict, List, Optional, Tuple, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 
+# Tkinter 导入
+import tkinter as tk
+from tkinter import ttk
+
 # NTP 同步模块 (可选导入)
 try:
     from utils.ntp_client import NTPSyncManager, NTPResult
