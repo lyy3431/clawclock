@@ -662,77 +662,54 @@ class ThemeMixin:
         except Exception as e:
             pass
 
-        # 额外配置：针对 clam 主题的特殊处理 - 关键修复：Combobox 下拉列表颜色
+        # 额外配置：针对 clam 主题的 Combobox 下拉列表颜色
         try:
-            # 配置 Combobox 的布局元素颜色
             style = ttk.Style()
-            # 获取 Combobox 的当前布局
-            combo_layout = style.layout('TCombobox')
-            if combo_layout:
-                # 配置 Combobox 内部元素
-                style.configure('Combobox.PopdownMenu',
-                               background=self.face_color,
-                               foreground=self.text_color)
-                
-            # 关键修复：配置下拉列表的 Listbox 颜色
-            style.configure('TCombobox',
-                           postoffset=[0, 0, 0, 0])
             
-            # 尝试配置下拉列表背景色（多种可能的样式名）
-            for popdown_style in ['Combobox.Treeview', 'Treeview', 'Combobox.Listbox']:
-                try:
-                    style.configure(popdown_style,
-                                   background=self.face_color,
-                                   foreground=self.text_color,
-                                   fieldbackground=self.face_color,
-                                   selectbackground=self.accent_color,
-                                   selectforeground=self.text_color)
-                except Exception:
-                    pass
-        except Exception:
-            pass
+            # 配置下拉菜单背景色（关键：使用与 face_color 一致的浅色）
+            # 注意：下拉列表需要足够的对比度才能看清文字
+            popdown_bg = self.face_color
+            popdown_fg = self.text_color
+            
+            # 配置 PopdownMenu
+            style.configure('Combobox.PopdownMenu',
+                           background=popdown_bg,
+                           foreground=popdown_fg)
+            
+            # 配置 Treeview（下拉列表实际使用的样式）
+            style.configure('Treeview',
+                           background=popdown_bg,
+                           foreground=popdown_fg,
+                           fieldbackground=popdown_bg,
+                           selectbackground=self.accent_color,
+                           selectforeground=popdown_fg)
+        except Exception as e:
+            print(f"配置 Combobox 下拉列表样式失败：{e}")
 
     def _refresh_combobox_widgets(self) -> None:
-        """专门刷新 Combobox 组件 - 彻底修复下拉列表颜色问题"""
+        """专门刷新 Combobox 组件 - 简单可靠的刷新方法"""
         if not hasattr(self, 'root'):
             return
         
-        # 刷新所有 Combobox 的颜色
+        # 简单刷新：只重新应用样式和值，不重建组件
         for combo_attr in ['tz_combo', 'theme_combo']:
             if hasattr(self, combo_attr):
                 combo = getattr(self, combo_attr)
                 try:
-                    # 保存当前状态
+                    # 保存当前值
                     current_value = combo.get()
                     values = combo.cget('values')
-                    state = combo.cget('state')
-                    width = combo.cget('width')
                     
-                    # 获取父容器和布局信息
-                    parent = combo.master
-                    pack_info = combo.pack_info()
+                    # 强制重新应用样式
+                    combo.configure(style='TCombobox')
                     
-                    # 销毁旧组件
-                    combo.destroy()
+                    # 重新设置值和选项来强制刷新
+                    combo.configure(values=[])
+                    combo.configure(values=values)
+                    combo.set(current_value)
                     
-                    # 创建新组件
-                    new_combo = ttk.Combobox(parent, values=values, width=width, state=state)
-                    new_combo.set(current_value)
-                    
-                    # 重新打包到相同位置
-                    if pack_info:
-                        new_combo.pack(**pack_info)
-                    else:
-                        new_combo.pack(side=tk.LEFT, padx=(5, 0))
-                    
-                    # 重新绑定事件
-                    if combo_attr == 'tz_combo' and hasattr(self, 'on_timezone_change'):
-                        new_combo.bind("<<ComboboxSelected>>", self.on_timezone_change)
-                    elif combo_attr == 'theme_combo' and hasattr(self, 'on_theme_change'):
-                        new_combo.bind("<<ComboboxSelected>>", self.on_theme_change)
-                    
-                    # 更新引用
-                    setattr(self, combo_attr, new_combo)
+                    # 强制重绘
+                    combo.update_idletasks()
                 except Exception as e:
                     print(f"刷新 {combo_attr} 失败：{e}")
 
