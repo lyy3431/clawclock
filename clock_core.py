@@ -507,21 +507,13 @@ class ThemeMixin:
             self.timer_sec_entry.config(bg=self.face_color, fg=self.text_color,
                                        insertbackground=self.text_color)
 
-        # 20. 更新时区和主题选择器 Combobox
-        if hasattr(self, 'tz_combo'):
-            try:
-                self.tz_combo.configure(style='TCombobox')
-            except Exception:
-                pass
-        if hasattr(self, 'theme_combo'):
-            try:
-                self.theme_combo.configure(style='TCombobox')
-            except Exception:
-                pass
+        # 20. 更新时区和主题选择器 Combobox - 关键修复：完全刷新 Combobox
+        self._refresh_combobox_widgets()
 
         # 21. 强制刷新整个窗口（两次确保生效）
         self.root.after(50, lambda: self.root.update_idletasks())
         self.root.after(100, lambda: self.root.update_idletasks())
+        self.root.after(150, lambda: self.root.update_idletasks())
 
     def _update_ttk_styles(self) -> None:
         """更新 ttk 组件的样式（Combobox 等）- 完整修复版本"""
@@ -670,7 +662,7 @@ class ThemeMixin:
         except Exception as e:
             pass
 
-        # 额外配置：针对 clam 主题的特殊处理
+        # 额外配置：针对 clam 主题的特殊处理 - 关键修复：Combobox 下拉列表颜色
         try:
             # 配置 Combobox 的布局元素颜色
             style = ttk.Style()
@@ -681,18 +673,80 @@ class ThemeMixin:
                 style.configure('Combobox.PopdownMenu',
                                background=self.face_color,
                                foreground=self.text_color)
+                
+            # 关键修复：配置下拉列表的 Listbox 颜色
+            style.configure('TCombobox',
+                           postoffset=[0, 0, 0, 0])
+            
+            # 尝试配置下拉列表背景色（多种可能的样式名）
+            for popdown_style in ['Combobox.Treeview', 'Treeview', 'Combobox.Listbox']:
+                try:
+                    style.configure(popdown_style,
+                                   background=self.face_color,
+                                   foreground=self.text_color,
+                                   fieldbackground=self.face_color,
+                                   selectbackground=self.accent_color,
+                                   selectforeground=self.text_color)
+                except Exception:
+                    pass
         except Exception:
             pass
+
+    def _refresh_combobox_widgets(self) -> None:
+        """专门刷新 Combobox 组件 - 彻底修复下拉列表颜色问题"""
+        if not hasattr(self, 'root'):
+            return
+        
+        # 刷新所有 Combobox 的颜色
+        for combo_attr in ['tz_combo', 'theme_combo']:
+            if hasattr(self, combo_attr):
+                combo = getattr(self, combo_attr)
+                try:
+                    # 保存当前状态
+                    current_value = combo.get()
+                    values = combo.cget('values')
+                    state = combo.cget('state')
+                    width = combo.cget('width')
+                    
+                    # 获取父容器和布局信息
+                    parent = combo.master
+                    pack_info = combo.pack_info()
+                    
+                    # 销毁旧组件
+                    combo.destroy()
+                    
+                    # 创建新组件
+                    new_combo = ttk.Combobox(parent, values=values, width=width, state=state)
+                    new_combo.set(current_value)
+                    
+                    # 重新打包到相同位置
+                    if pack_info:
+                        new_combo.pack(**pack_info)
+                    else:
+                        new_combo.pack(side=tk.LEFT, padx=(5, 0))
+                    
+                    # 重新绑定事件
+                    if combo_attr == 'tz_combo' and hasattr(self, 'on_timezone_change'):
+                        new_combo.bind("<<ComboboxSelected>>", self.on_timezone_change)
+                    elif combo_attr == 'theme_combo' and hasattr(self, 'on_theme_change'):
+                        new_combo.bind("<<ComboboxSelected>>", self.on_theme_change)
+                    
+                    # 更新引用
+                    setattr(self, combo_attr, new_combo)
+                except Exception as e:
+                    print(f"刷新 {combo_attr} 失败：{e}")
 
     def _refresh_ttk_widgets(self) -> None:
         """显式刷新所有 ttk 组件的颜色 - 关键修复方法"""
         if not hasattr(self, 'root'):
             return
 
-        # 显式刷新 Combobox
+        # 显式刷新 Combobox - 通过重新应用样式和刷新值
         if hasattr(self, 'tz_combo'):
             try:
-                # 通过重新设置值来强制刷新
+                # 强制重新应用样式
+                self.tz_combo.configure(style='TCombobox')
+                # 通过重新设置值来强制刷新显示
                 current_value = self.tz_combo.get()
                 values = self.tz_combo.cget('values')
                 self.tz_combo.configure(values=values)
@@ -702,6 +756,9 @@ class ThemeMixin:
 
         if hasattr(self, 'theme_combo'):
             try:
+                # 强制重新应用样式
+                self.theme_combo.configure(style='TCombobox')
+                # 通过重新设置值来强制刷新显示
                 current_value = self.theme_combo.get()
                 values = self.theme_combo.cget('values')
                 self.theme_combo.configure(values=values)
